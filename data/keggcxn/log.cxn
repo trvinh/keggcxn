@@ -1,0 +1,128 @@
+1100	no-relation	Metabolic pathways	Global and overview maps	Metabolism
+1110	no-relation	Biosynthesis of secondary metabolites	Global and overview maps	Metabolism
+1120	no-relation	Microbial metabolism in diverse environments	Global and overview maps	Metabolism
+1130	no-relation	Biosynthesis of antibiotics	Global and overview maps	Metabolism
+1200	no-relation	Carbon metabolism	Global and overview maps	Metabolism
+1210	no-relation	2-Oxocarboxylic acid metabolism	Global and overview maps	Metabolism
+1212	no-relation	Fatty acid metabolism	Global and overview maps	Metabolism
+1230	no-relation	Biosynthesis of amino acids	Global and overview maps	Metabolism
+1220	no-relation	Degradation of aromatic compounds	Global and overview maps	Metabolism
+195	no-relation	Photosynthesis	Energy metabolism	Metabolism
+196	no-relation	Photosynthesis - antenna proteins	Energy metabolism	Metabolism
+121	no-relation	Secondary bile acid biosynthesis	Lipid metabolism	Metabolism
+1040	no-relation	Biosynthesis of unsaturated fatty acids	Lipid metabolism	Metabolism
+514	no-relation	Other types of O-glycan biosynthesis	Glycan biosynthesis and metabolism	Metabolism
+534	no-relation	Glycosaminoglycan biosynthesis - heparan sulfate / heparin	Glycan biosynthesis and metabolism	Metabolism
+533	no-relation	Glycosaminoglycan biosynthesis - keratan sulfate	Glycan biosynthesis and metabolism	Metabolism
+511	no-relation	Other glycan degradation	Glycan biosynthesis and metabolism	Metabolism
+1052	no-relation	Type I polyketide structures	Metabolism of terpenoids and polyketides	Metabolism
+1054	no-relation	Nonribosomal peptide structures	Metabolism of terpenoids and polyketides	Metabolism
+1058	no-relation	Acridone alkaloid biosynthesis	Biosynthesis of other secondary metabolites	Metabolism
+966	no-relation	Glucosinolate biosynthesis	Biosynthesis of other secondary metabolites	Metabolism
+http://rest.kegg.jp/get/ko00351/kgml	not-exist	DDT degradation	Xenobiotics biodegradation and metabolism	Metabolism
+363	no-relation	Bisphenol degradation	Xenobiotics biodegradation and metabolism	Metabolism
+http://rest.kegg.jp/get/ko01010/kgml	not-exist	Overview of biosynthetic pathways	Chemical structure transformation maps	Metabolism
+http://rest.kegg.jp/get/ko01060/kgml	not-exist	Biosynthesis of plant secondary metabolites	Chemical structure transformation maps	Metabolism
+http://rest.kegg.jp/get/ko01061/kgml	not-exist	Biosynthesis of phenylpropanoids	Chemical structure transformation maps	Metabolism
+http://rest.kegg.jp/get/ko01062/kgml	not-exist	Biosynthesis of terpenoids and steroids	Chemical structure transformation maps	Metabolism
+http://rest.kegg.jp/get/ko01063/kgml	not-exist	Biosynthesis of alkaloids derived from shikimate pathway	Chemical structure transformation maps	Metabolism
+http://rest.kegg.jp/get/ko01064/kgml	not-exist	Biosynthesis of alkaloids derived from ornithine, lysine and nicotinic acid	Chemical structure transformation maps	Metabolism
+http://rest.kegg.jp/get/ko01065/kgml	not-exist	Biosynthesis of alkaloids derived from histidine and purine	Chemical structure transformation maps	Metabolism
+http://rest.kegg.jp/get/ko01066/kgml	not-exist	Biosynthesis of alkaloids derived from terpenoid and polyketide	Chemical structure transformation maps	Metabolism
+http://rest.kegg.jp/get/ko01070/kgml	not-exist	Biosynthesis of plant hormones	Chemical structure transformation maps	Metabolism
+3020	no-relation	RNA polymerase	Transcription	Genetic Information Processing
+3022	no-relation	Basal transcription factors	Transcription	Genetic Information Processing
+3040	no-relation	Spliceosome	Transcription	Genetic Information Processing
+3010	no-relation	Ribosome	Translation	Genetic Information Processing
+3060	no-relation	Protein export	Folding, sorting and degradation	Genetic Information Processing
+4120	no-relation	Ubiquitin mediated proteolysis	Folding, sorting and degradation	Genetic Information Processing
+3050	no-relation	Proteasome	Folding, sorting and degradation	Genetic Information Processing
+3030	no-relation	DNA replication	Replication and repair	Genetic Information Processing
+3410	no-relation	Base excision repair	Replication and repair	Genetic Information Processing
+3420	no-relation	Nucleotide excision repair	Replication and repair	Genetic Information Processing
+3430	no-relation	Mismatch repair	Replication and repair	Genetic Information Processing
+3450	no-relation	Non-homologous end-joining	Replication and repair	Genetic Information Processing
+3070	no-relation	Bacterial secretion system	Membrane transport	Environmental Information Processing
+4142	no-relation	Lysosome	Transport and catabolism	Cellular Processes
+2040	no-relation	Flagellar assembly	Cell motility	Cellular Processes
+4215	no-relation	Apoptosis - multiple species	Cell growth and death	Cellular Processes
+4640	no-relation	Hematopoietic cell lineage	Immune system	Organismal Systems
+4974	no-relation	Protein digestion and absorption	Digestive system	Organismal Systems
+4966	no-relation	Collecting duct acid secretion	Excretory system	Organismal Systems
+5340	no-relation	Primary immunodeficiency	Immune diseases	Human Diseases
+5033	no-relation	Nicotine addiction	Substance dependence	Human Diseases
+http://rest.kegg.jp/get/ko07011/kgml	not-exist	Penicillins	Chronology: Antiinfectives	Drug Development
+http://rest.kegg.jp/get/ko07012/kgml	not-exist	Cephalosporins - parenteral agents	Chronology: Antiinfectives	Drug Development
+http://rest.kegg.jp/get/ko07013/kgml	not-exist	Cephalosporins - oral agents	Chronology: Antiinfectives	Drug Development
+http://rest.kegg.jp/get/ko07021/kgml	not-exist	Aminoglycosides	Chronology: Antiinfectives	Drug Development
+http://rest.kegg.jp/get/ko07019/kgml	not-exist	Tetracyclines	Chronology: Antiinfectives	Drug Development
+http://rest.kegg.jp/get/ko07020/kgml	not-exist	Macrolides and ketolides	Chronology: Antiinfectives	Drug Development
+http://rest.kegg.jp/get/ko07014/kgml	not-exist	Quinolones	Chronology: Antiinfectives	Drug Development
+http://rest.kegg.jp/get/ko07023/kgml	not-exist	Rifamycins	Chronology: Antiinfectives	Drug Development
+http://rest.kegg.jp/get/ko07026/kgml	not-exist	Antifungal agents	Chronology: Antiinfectives	Drug Development
+http://rest.kegg.jp/get/ko07044/kgml	not-exist	Antiviral agents	Chronology: Antiinfectives	Drug Development
+http://rest.kegg.jp/get/ko07053/kgml	not-exist	Anti-HIV agents	Chronology: Antiinfectives	Drug Development
+http://rest.kegg.jp/get/ko07040/kgml	not-exist	Antineoplastics - alkylating agents	Chronology: Antineoplastics	Drug Development
+http://rest.kegg.jp/get/ko07041/kgml	not-exist	Antineoplastics - antimetabolic agents	Chronology: Antineoplastics	Drug Development
+http://rest.kegg.jp/get/ko07042/kgml	not-exist	Antineoplastics - agents from natural products	Chronology: Antineoplastics	Drug Development
+http://rest.kegg.jp/get/ko07043/kgml	not-exist	Antineoplastics - hormones	Chronology: Antineoplastics	Drug Development
+http://rest.kegg.jp/get/ko07045/kgml	not-exist	Antineoplastics - protein kinases inhibitors	Chronology: Antineoplastics	Drug Development
+http://rest.kegg.jp/get/ko07032/kgml	not-exist	Hypnotics	Chronology: Nervous system agents	Drug Development
+http://rest.kegg.jp/get/ko07030/kgml	not-exist	Anxiolytics	Chronology: Nervous system agents	Drug Development
+http://rest.kegg.jp/get/ko07033/kgml	not-exist	Anticonvulsants	Chronology: Nervous system agents	Drug Development
+http://rest.kegg.jp/get/ko07015/kgml	not-exist	Local analgesics	Chronology: Nervous system agents	Drug Development
+http://rest.kegg.jp/get/ko07039/kgml	not-exist	Opioid analgesics	Chronology: Nervous system agents	Drug Development
+http://rest.kegg.jp/get/ko07028/kgml	not-exist	Antipsychotics	Chronology: Nervous system agents	Drug Development
+http://rest.kegg.jp/get/ko07029/kgml	not-exist	Phenothiazines	Chronology: Nervous system agents	Drug Development
+http://rest.kegg.jp/get/ko07031/kgml	not-exist	Butyrophenones	Chronology: Nervous system agents	Drug Development
+http://rest.kegg.jp/get/ko07027/kgml	not-exist	Antidepressants	Chronology: Nervous system agents	Drug Development
+http://rest.kegg.jp/get/ko07056/kgml	not-exist	Agents for Alzheimer-type dementia	Chronology: Nervous system agents	Drug Development
+http://rest.kegg.jp/get/ko07057/kgml	not-exist	Antiparkinsonian agents	Chronology: Nervous system agents	Drug Development
+http://rest.kegg.jp/get/ko07055/kgml	not-exist	Sulfonamide derivatives - overview	Chronology: Other drugs	Drug Development
+http://rest.kegg.jp/get/ko07016/kgml	not-exist	Sulfonamide derivatives - sulfa drugs	Chronology: Other drugs	Drug Development
+http://rest.kegg.jp/get/ko07017/kgml	not-exist	Sulfonamide derivatives - diuretics	Chronology: Other drugs	Drug Development
+http://rest.kegg.jp/get/ko07018/kgml	not-exist	Sulfonamide derivatives - hypoglycemic agents	Chronology: Other drugs	Drug Development
+http://rest.kegg.jp/get/ko07037/kgml	not-exist	Antiarrhythmic drugs	Chronology: Other drugs	Drug Development
+http://rest.kegg.jp/get/ko07038/kgml	not-exist	Antiulcer drugs	Chronology: Other drugs	Drug Development
+http://rest.kegg.jp/get/ko07046/kgml	not-exist	Immunosuppressive agents	Chronology: Other drugs	Drug Development
+http://rest.kegg.jp/get/ko07047/kgml	not-exist	Osteoporosis drugs	Chronology: Other drugs	Drug Development
+http://rest.kegg.jp/get/ko07048/kgml	not-exist	Antimigraines	Chronology: Other drugs	Drug Development
+http://rest.kegg.jp/get/ko07049/kgml	not-exist	Antithrombosis agents	Chronology: Other drugs	Drug Development
+http://rest.kegg.jp/get/ko07050/kgml	not-exist	Antirheumatics - DMARDs and biological agents	Chronology: Other drugs	Drug Development
+http://rest.kegg.jp/get/ko07051/kgml	not-exist	Antidiabetics	Chronology: Other drugs	Drug Development
+http://rest.kegg.jp/get/ko07052/kgml	not-exist	Antidyslipidemic agents	Chronology: Other drugs	Drug Development
+http://rest.kegg.jp/get/ko07054/kgml	not-exist	Antiglaucoma agents	Chronology: Other drugs	Drug Development
+http://rest.kegg.jp/get/ko07220/kgml	not-exist	Cholinergic and anticholinergic drugs	Target-based classification: G protein-coupled receptors	Drug Development
+http://rest.kegg.jp/get/ko07215/kgml	not-exist	alpha-Adrenergic receptor agonists/antagonists	Target-based classification: G protein-coupled receptors	Drug Development
+http://rest.kegg.jp/get/ko07214/kgml	not-exist	beta-Adrenergic receptor agonists/antagonists	Target-based classification: G protein-coupled receptors	Drug Development
+http://rest.kegg.jp/get/ko07213/kgml	not-exist	Dopamine receptor agonists/antagonists	Target-based classification: G protein-coupled receptors	Drug Development
+http://rest.kegg.jp/get/ko07212/kgml	not-exist	Histamine H1 receptor antagonists	Target-based classification: G protein-coupled receptors	Drug Development
+http://rest.kegg.jp/get/ko07227/kgml	not-exist	Histamine H2/H3 receptor agonists/antagonists	Target-based classification: G protein-coupled receptors	Drug Development
+http://rest.kegg.jp/get/ko07211/kgml	not-exist	Serotonin receptor agonists/antagonists	Target-based classification: G protein-coupled receptors	Drug Development
+http://rest.kegg.jp/get/ko07228/kgml	not-exist	Eicosanoid receptor agonists/antagonists	Target-based classification: G protein-coupled receptors	Drug Development
+http://rest.kegg.jp/get/ko07224/kgml	not-exist	Opioid receptor agonists/antagonists	Target-based classification: G protein-coupled receptors	Drug Development
+http://rest.kegg.jp/get/ko07229/kgml	not-exist	Angiotensin receptor and endothelin receptor antagonists	Target-based classification: G protein-coupled receptors	Drug Development
+http://rest.kegg.jp/get/ko07225/kgml	not-exist	Glucocorticoid and meneralocorticoid receptor agonists/antagonists	Target-based classification: Nuclear receptors	Drug Development
+http://rest.kegg.jp/get/ko07226/kgml	not-exist	Progesterone, androgen and estrogen receptor agonists/antagonists	Target-based classification: Nuclear receptors	Drug Development
+http://rest.kegg.jp/get/ko07223/kgml	not-exist	Retinoic acid receptor (RAR) and retinoid X receptor (RXR) agonists/antagonists	Target-based classification: Nuclear receptors	Drug Development
+http://rest.kegg.jp/get/ko07222/kgml	not-exist	Peroxisome proliferator-activated receptor (PPAR) agonists	Target-based classification: Nuclear receptors	Drug Development
+http://rest.kegg.jp/get/ko07221/kgml	not-exist	Nicotinic cholinergic receptor antagonists	Target-based classification: Ion channels	Drug Development
+http://rest.kegg.jp/get/ko07230/kgml	not-exist	GABA-A receptor agonists/antagonists	Target-based classification: Ion channels	Drug Development
+http://rest.kegg.jp/get/ko07036/kgml	not-exist	Calcium channel blocking drugs	Target-based classification: Ion channels	Drug Development
+http://rest.kegg.jp/get/ko07231/kgml	not-exist	Sodium channel blocking drugs	Target-based classification: Ion channels	Drug Development
+http://rest.kegg.jp/get/ko07232/kgml	not-exist	Potassium channel blocking and opening drugs	Target-based classification: Ion channels	Drug Development
+http://rest.kegg.jp/get/ko07235/kgml	not-exist	N-Metyl-D-aspartic acid receptor antagonists	Target-based classification: Ion channels	Drug Development
+http://rest.kegg.jp/get/ko07233/kgml	not-exist	Ion transporter inhibitors	Target-based classification: Transporters	Drug Development
+http://rest.kegg.jp/get/ko07234/kgml	not-exist	Neurotransmitter transporter inhibitors	Target-based classification: Transporters	Drug Development
+http://rest.kegg.jp/get/ko07216/kgml	not-exist	Catecholamine transferase inhibitors	Target-based classification: Enzymes	Drug Development
+http://rest.kegg.jp/get/ko07219/kgml	not-exist	Cyclooxygenase inhibitors	Target-based classification: Enzymes	Drug Development
+http://rest.kegg.jp/get/ko07024/kgml	not-exist	HMG-CoA reductase inhibitors	Target-based classification: Enzymes	Drug Development
+http://rest.kegg.jp/get/ko07217/kgml	not-exist	Renin-angiotensin system inhibitors	Target-based classification: Enzymes	Drug Development
+http://rest.kegg.jp/get/ko07218/kgml	not-exist	HIV protease inhibitors	Target-based classification: Enzymes	Drug Development
+http://rest.kegg.jp/get/ko07025/kgml	not-exist	Quinolines	Structure-based classification	Drug Development
+http://rest.kegg.jp/get/ko07034/kgml	not-exist	Eicosanoids	Structure-based classification	Drug Development
+http://rest.kegg.jp/get/ko07035/kgml	not-exist	Prostaglandins	Structure-based classification	Drug Development
+http://rest.kegg.jp/get/ko07110/kgml	not-exist	Benzoic acid family	Skeleton-based classification	Drug Development
+http://rest.kegg.jp/get/ko07112/kgml	not-exist	1,2-Diphenyl substitution family	Skeleton-based classification	Drug Development
+http://rest.kegg.jp/get/ko07114/kgml	not-exist	Naphthalene family	Skeleton-based classification	Drug Development
+http://rest.kegg.jp/get/ko07117/kgml	not-exist	Benzodiazepine family	Skeleton-based classification	Drug Development
