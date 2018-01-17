@@ -1,11 +1,6 @@
 if (!require("shiny")) {install.packages("shiny")}
 if (!require("shinyBS")) {install.packages("shinyBS")}
 if (!require("shinyjs")) {install.packages("shinyjs")}
-if (!require("visNetwork")) {install.packages("visNetwork")}
-# if (!require("rcytoscapejs")) {
-#   library("devtools");
-#   devtools::install_github("cytoscape/r-cytoscape.js");
-# }
 
 shinyUI(
   fluidPage(
@@ -77,7 +72,25 @@ shinyUI(
       
       ########## STATISTIC TAB ###########
       tabPanel(
-        "Network statistic"
+        "Network statistic",
+        h4("NODE PROPERTIES"),
+        dataTableOutput("stat.table"),
+        hr(),
+        h4("NODE DEGREE DISTRIBUTION"),
+        column(
+          4,
+          radioButtons(inputId="distPlotType", label="Choose type of distribution:", choices=list("Absolute count","Density"), selected="Absolute count", inline=T),
+          numericInput("distTextSize","Label size",min=2,max=99,step=1,value=12,width=100),
+          hr(),
+          tags$head(
+            tags$style(HTML('#plotDownload_dist{background-color:#A9E2F3}'))
+          ),
+          downloadButton('plotDownload_dist','Download plot')
+        ),
+        column(
+          8,
+          uiOutput("stat.ui")
+        )
       )
     )
   )

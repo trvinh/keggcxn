@@ -1,7 +1,9 @@
-# if (!require("network")) {install.packages("network")}
-# if (!require("igraph")) {install.packages("igraph")}
 if (!require("DT")) {install.packages("DT")}
 if (!require("dplyr")) {install.packages("dplyr")}
+if (!require("ggplot2")) {install.packages("ggplot2")}
+if (!require("visNetwork")) {install.packages("visNetwork")}
+
+source("functions.R")
 
 shinyServer(function(input, output, session) {
   session$allowReconnect(TRUE)
@@ -180,7 +182,7 @@ shinyServer(function(input, output, session) {
         joinedDf[is.na(joinedDf$color),]$color <- "#878787"
       }
       
-      joinedDf <- rename(joinedDf, title = geneID)
+      joinedDf <- dplyr::rename(joinedDf, title = geneID)
       if(nrow(joinedDf[is.na(joinedDf$title),]) > 0){
         joinedDf[is.na(joinedDf$title),]$title <- as.character(joinedDf[is.na(joinedDf$title),]$id)
       }
@@ -202,7 +204,6 @@ shinyServer(function(input, output, session) {
       nodeDf$shape <- "box"
       return(nodeDf)
     }
-    
   })
   
   ##### get list of edges #####
@@ -211,24 +212,6 @@ shinyServer(function(input, output, session) {
     edgeDf <- inputDf[,(1:2)]
     return(edgeDf)
   })
-  
-  # 
-  # networkReactive <- reactive({
-  #   if(is.null(input$pathID)){return ()}
-  #   network <- networkDf()
-  #   if(is.null(input$connectedNodes)) {
-  #     return(network)
-  #   } else {
-  #     t1 <- which(network$source %in% input$connectedNodes)
-  #     t2 <- which(network$target %in% input$connectedNodes)
-  #     idx <- unique(c(t1, t2))
-  #     return(network[idx,])
-  #   }
-  # })
-  
-  # 
-  # ##### print list of connected nodes for clicked nodes #####
-  
   
   ##### RENDER NETWORK #####
   networkPlot <- reactive({
@@ -311,5 +294,93 @@ shinyServer(function(input, output, session) {
   output$connectedNodes <- DT::renderDataTable({
     DT::datatable(connectedNodes(), style='bootstrap', options=list(pageLength=5, sDom  = '<"top">lrt<"bottom">ip'))
   })
+  
+  ##### generate node property table #####
+  # createLink <- function(id) {
+  #   sprintf('<a href="http://www.genome.jp/dbget-bin/www_bget?" target="_blank" class="btn btn-primary">link</a>',id)
+  # }
+  
+  nodeProp <- reactive({
+    # get node and edge data
+    nodeDf <- nodeData()
+    edgeDf <- edgeData()
+    edgeDf <- edgeDf[edgeDf$from %in% nodeDf$id & edgeDf$to %in% nodeDf$id,]
+    
+    # calculate node degrees
+    nodeDegree <- data.frame("id" = nodeDf$id)
+    allConnect <- c(as.character(edgeDf$from), as.character(edgeDf$to))
+    if(length(allConnect) > 0){
+      degree <- as.data.frame(table(allConnect))
+      colnames(degree) <- c("id","Degree")
+      nodeDegree <- merge(nodeDegree, degree, by="id")
+    } else {
+      nodeDegree$Degree <- 0
+    }
+    
+    # get node information from input file
+    annoDf <- annoDf()
+    # print(head(annoDf))
+    if(is.null(annoDf)){
+      # nodeDegree$href <- createLink(nodeDegree$id)
+      nodeDegree$href <- paste0("http://www.genome.jp/dbget-bin/www_bget?",nodeDegree$id)
+      colnames(nodeDegree) <- c("Node","Degree","Link")
+      return(nodeDegree)
+    } else {
+      mergeDf <- merge(nodeDegree,annoDf, by="id", all.x = TRUE)
+      mergeDf$href <- paste0("http://www.genome.jp/dbget-bin/www_bget?",mergeDf$id)
+      outDf <- mergeDf[,c("id","Degree","geneID","FAS","patristicDist","href")]
+      colnames(outDf) <- c("Node","Degree","Gene ID","FAS","Patristic distance","Link")
+      return(outDf)
+    }
+  })
+  
+  ##### network statistics #####
+  output$stat.table <- renderDataTable({
+    datatable(nodeProp(), style='bootstrap', options=list(pageLength=5, sDom  = '<"top">lrt<"bottom">ip'), filter = "bottom")
+  })
+  
+  degreeDistPlot <- reactive({
+    if (is.null(nodeProp())){return ()}
+    
+    nodeProp <- nodeProp()
+    
+    if(input$distPlotType == "Density"){
+      p <- ggplot(nodeProp, aes(x=Degree)) +
+        geom_histogram(aes(y=..density..), binwidth=.5, alpha = .8, position="identity") +
+        geom_density(alpha = .2, fill='#7ea4d6', color="#7ea4d6") +
+        geom_vline(data=nodeProp, aes(xintercept=mean(nodeProp$Degree),colour="mean"),
+                   linetype="solid", size=.5) +
+        scale_color_manual(name = "", values = c(mean = "red")) +
+        theme_minimal()
+      p <- p + theme(legend.title = element_blank(), legend.text = element_text(size=input$distTextSize),
+                     axis.text = element_text(size=input$distTextSize), axis.title = element_text(size=input$distTextSize))
+      return(p)
+    } else {
+      p <- ggplot(nodeProp, aes(x=Degree)) +
+        geom_histogram(binwidth=.5, alpha = .8, position="identity") +
+        geom_vline(data=nodeProp, aes(xintercept=mean(nodeProp$Degree),colour="mean"),
+                   linetype="solid", size=.5) +
+        scale_color_manual(name = "", values = c(mean = "red")) +
+        theme_minimal()
+      p <- p + theme(legend.title = element_blank(), legend.text = element_text(size=input$distTextSize),
+                     axis.text = element_text(size=input$distTextSize), axis.title = element_text(size=input$distTextSize))
+      return(p)
+    }
+  })
+  
+  output$degreeDistPlot <- renderPlot(width = 512, height = 356,{
+    degreeDistPlot()
+  })
+  
+  output$stat.ui <- renderUI({
+    plotOutput("degreeDistPlot")
+  })
+  
+  output$plotDownload_dist <- downloadHandler(
+    filename = function() {paste0("distributionPlot.pdf")},
+    content = function(file) {
+      ggsave(file, plot = degreeDistPlot(), dpi=300, device = "pdf", limitsize=FALSE)
+    }
+  )
   
 })
