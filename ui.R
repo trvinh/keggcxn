@@ -1,10 +1,11 @@
 if (!require("shiny")) {install.packages("shiny")}
 if (!require("shinyBS")) {install.packages("shinyBS")}
 if (!require("shinyjs")) {install.packages("shinyjs")}
-if (!require("rcytoscapejs")) {
-  library("devtools");
-  devtools::install_github("cytoscape/r-cytoscape.js");
-}
+if (!require("visNetwork")) {install.packages("visNetwork")}
+# if (!require("rcytoscapejs")) {
+#   library("devtools");
+#   devtools::install_github("cytoscape/r-cytoscape.js");
+# }
 
 shinyUI(
   fluidPage(
@@ -24,11 +25,6 @@ shinyUI(
       inverse = TRUE,
       fluid = TRUE,
       position = "fixed-top",
-      
-      ########## INPUT TAB ###########
-      # tabPanel(
-      #   "Input & settings"
-      # ),
       
       ########## NETWORK TAB ###########
       tabPanel(
@@ -56,7 +52,9 @@ shinyUI(
                 choices=list("no","yes"),
                 selected="no",
                 inline=T
-              )
+              ),
+              sliderInput("maxSpeed",
+                          "Max velocity:", min = 0, max = 500, step = 5, value = 10, width = 200)
             )
           )
         ),
@@ -64,23 +62,22 @@ shinyUI(
         column(
           8,
           uiOutput("msg"),
-          rcytoscapejsOutput("plot", height="600px")
+          visNetworkOutput("plot",height = "600px")
         ),
         
-        column(4,
-               h4("Download Network"),
-               actionLink("saveImage", "Download as PNG"),
-               h4("Clicked Node"),
-               verbatimTextOutput("clickedNode"),
-               h4("Connected Nodes"),
-               verbatimTextOutput("connectedNodes"),
-               hr(),
-               h4("Clicked Node Data"),
-               dataTableOutput("nodeDataTable"),
-               hr(),
-               h4("Data for Edges between Connected Nodes"),
-               dataTableOutput("edgeDataTable")
+        column(
+          4,
+          h4("Selected Node"),
+          verbatimTextOutput("clickedNode"),
+          
+          h4("Connected Nodes"),
+          dataTableOutput("connectedNodes")
         )
+      ),
+      
+      ########## STATISTIC TAB ###########
+      tabPanel(
+        "Network statistic"
       )
     )
   )
