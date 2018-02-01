@@ -3,15 +3,18 @@ if (!require("dplyr")) {install.packages("dplyr")}
 if (!require("ggplot2")) {install.packages("ggplot2")}
 if (!require("visNetwork")) {install.packages("visNetwork")}
 
-source("functions.R")
-
 shinyServer(function(input, output, session) {
   session$allowReconnect(TRUE)
   
   ##### render upload main input #####
-  output$mainInput <- renderUI({
-    fileInput("mainInput","Upload input file:")
+  # output$mainInput <- renderUI({
+  #   fileInput("mainInput","Upload input file:")
+  # })
+  
+  output$fileUploaded <- reactive({
+    return(!is.null(input$mainInput))
   })
+  outputOptions(output, 'fileUploaded', suspendWhenHidden=FALSE)
   
   ##### render list of pathway names and IDs #####
   pathDf <- reactive({
@@ -123,6 +126,15 @@ shinyServer(function(input, output, session) {
     return (annoDf)
   })
   
+  ##### render list of source species #####
+  output$sourceList.ui <- renderUI({
+    annoDf <- annoDf()
+    if(!is.null(annoDf)){
+      source <- c("all",unique(annoDf$source))
+      selectInput('sourceList', label = "Choose source taxon:", choices = source, selected = "all", width = "80%")
+    }
+  })
+  
   ##### get list of nodes and mark annotated nodes from input file #####
   nodeData <- reactive({
     inputDf <- networkDf()
@@ -136,72 +148,121 @@ shinyServer(function(input, output, session) {
     colnames(targetDf) <- "id"
     
     nodeDf <- unique(rbind(sourceDf,targetDf))
-    nodeDf$group <- "reference"
+    # nodeDf$group <- "reference"
     
-    ### map annotated nodes to reference net
+    ### read annotated data
     annoDf <- annoDf()
-
     if(!is.null(annoDf)){
+      ### filter data based on selected source species
+      if(!is.null(input$sourceList)){
+        if(input$sourceList != "all"){
+          annoDf <- annoDf[annoDf$source == input$sourceList,]
+        }
+      }
+      
+      ### map annotated nodes to reference net
       joinedDf <- merge(nodeDf,annoDf, by="id", all.x=TRUE)
+      joinedDf$group <- joinedDf$source
       
       ### remove un-annotated nodes if requested
       if(input$filterNodes == "yes"){
-        joinedDf <- joinedDf[complete.cases(joinedDf),]
-        joinedDf$group <- "annotated"
+        # joinedDf <- joinedDf[complete.cases(joinedDf),]
+        joinedDf <- joinedDf[!is.na(joinedDf$geneID),]
       }
       
-      ### change group type for annotated nodes
-      if(length(unique(complete.cases(joinedDf))) > 1){
-        joinedDf[!is.na(joinedDf$geneID),]$group <- "annotated"
-      }
-      
-      ### process duplicated node IDs
-      dupID <- joinedDf[duplicated(joinedDf$id),]$id
-      if(length(dupID) > 0){
-        # join gene IDs
-        joinedDf$joinedGeneID <- joinedDf$geneID
-        for(i in 1:length(dupID)){
-          joinedDf[joinedDf$id == dupID[i],]$joinedGeneID <- toString(joinedDf[joinedDf$id == dupID[i],]$geneID)
+      if(nrow(joinedDf) == 0){
+        nodeEmpty <- data.frame("id"="1","label"="Selected source taxon does not have any annotated proteins","title"="EMPTY","color"="white")
+        return(nodeEmpty)
+      } else {
+        ### change group type for reference nodes
+        # if(length(unique(complete.cases(joinedDf))) > 1){
+        if(nrow(joinedDf[is.na(joinedDf$geneID),]) > 0){
+          joinedDf[is.na(joinedDf$geneID),]$group <- "reference"
         }
         
-        # get max FAS for this joined node
-        aggrFAS <- aggregate(joinedDf[,"FAS"],list(joinedDf$id),FUN="max")
-        colnames(aggrFAS) <- c("id","FAS")
+        ### process duplicated node IDs
+        dupID <- joinedDf[duplicated(joinedDf$id),]$id
+        if(length(dupID) > 0){
+          # join gene IDs
+          joinedDf$joinedGeneID <- joinedDf$geneID
+          for(i in 1:length(dupID)){
+            joinedDf[joinedDf$id == dupID[i],]$joinedGeneID <- toString(unique(sort(joinedDf[joinedDf$id == dupID[i],]$geneID)))
+          }
+          
+          # join groups (source species)
+          joinedDf$joinedGroup <- joinedDf$group
+          for(i in 1:length(dupID)){
+            joinedDf[joinedDf$id == dupID[i],]$joinedGroup <- toString(unique(sort(joinedDf[joinedDf$id == dupID[i],]$source)))
+          }
+          
+          # get max FAS, min Dist and corresponding Color for joined nodes
+          aggrDist <- aggregate(joinedDf[,"patristicDist"],list(joinedDf$id),FUN="min")
+          colnames(aggrDist) <- c("id","patristicDist")
+          
+          aggrFAS <- aggregate(joinedDf[,"FAS"],list(joinedDf$id),FUN="max")
+          colnames(aggrFAS) <- c("id","FAS")
+          
+          aggrDf <- merge(aggrFAS, aggrDist, by="id")
+          for(i in 1:nrow(aggrFAS)){
+            aggrDf$joinedColor[i] <- joinedDf[joinedDf$id %in% aggrDf$id[i] & joinedDf$FAS %in% aggrDf$FAS[i],]$color[1]
+          }
+          
+          # remove duplicated IDs from joinedDf and merge with aggrDf
+          joinedDf <- joinedDf[!duplicated(joinedDf$id),]
+          joinedDf <- merge(aggrDf, joinedDf, by="id", all.x = TRUE)
+          
+          # return joinedDf after removing duplicated nodes
+          joinedDf <- joinedDf[,c("id","joinedGroup","FAS.x","joinedGeneID","joinedColor","patristicDist.x")]
+          colnames(joinedDf) <- c("id","group","FAS","geneID","color","patristicDist")
+        } 
+        # else {
+        #   print("NO DUP LINES")
+        #   # colnames(joinedDf) <- c("id","geneID","FAS","geneID","color","patristicDist")
+        #   print(head(joinedDf))
+        # }
         
-        # remove duplicated rows
-        joinedDf <- joinedDf[!duplicated(joinedDf$id),]
-        joinedDf <- merge(aggrFAS, joinedDf, by="id", all.x = TRUE)
+        ### node color(~distance), title, label, size(~FAS)
+        if(nrow(joinedDf[is.na(joinedDf$color),]) > 0){
+          joinedDf[is.na(joinedDf$color),]$color <- "#878787"
+        }
         
-        # return joinedDf after removing duplicated nodes
-        joinedDf <- joinedDf[,c("id","group","FAS.x","joinedGeneID","color","patristicDist")]
-        colnames(joinedDf) <- c("id","group","FAS","geneID","color","patristicDist")
+        joinedDf <- dplyr::rename(joinedDf, title = geneID)
+        if(nrow(joinedDf[is.na(joinedDf$title),]) > 0){
+          joinedDf[is.na(joinedDf$title),]$title <- as.character(joinedDf[is.na(joinedDf$title),]$id)
+        }
+        
+        joinedDf$label <- joinedDf$id
+        
+        joinedDf$value <- as.integer(100^(joinedDf$FAS)*10)
+        if(nrow(joinedDf[is.na(joinedDf$FAS),]) > 0){
+          joinedDf[is.na(joinedDf$FAS),]$value <- 1
+        }
+        
+        ### add node shapes
+        shapeList <- c("circle", "triangle", "square", "dot", "star", "ellipse", "database", "text", "diamond")
+        groupList <- sort(unique(joinedDf$group[joinedDf$group != "reference"]))
+        n = 1
+        for(i in 1:length(groupList)){
+          if(n > 9){n = 1}
+          joinedDf$shape[joinedDf$group == groupList[i]] <- as.character(shapeList[n])
+          n=n+1
+        }
+        joinedDf$shape[joinedDf$group == "reference"] <- "box"
+        
+        ### add shadow
+        joinedDf$shadow <- TRUE
+        joinedDf$shadow[joinedDf$group == "reference"] <- FALSE
+        
+        ### return node data
+        subNodeDf <- joinedDf[,c("id","label","title","group","value","color","shape","shadow")]
+        return(subNodeDf)
       }
-      
-      ### node color, title, label, (size)
-      if(nrow(joinedDf[is.na(joinedDf$color),]) > 0){
-        joinedDf[is.na(joinedDf$color),]$color <- "#878787"
-      }
-      
-      joinedDf <- dplyr::rename(joinedDf, title = geneID)
-      if(nrow(joinedDf[is.na(joinedDf$title),]) > 0){
-        joinedDf[is.na(joinedDf$title),]$title <- as.character(joinedDf[is.na(joinedDf$title),]$id)
-      }
-      
-      joinedDf$label <- joinedDf$id
-      
-      joinedDf$value <- as.integer(100^(joinedDf$FAS)*10)
-      if(nrow(joinedDf[is.na(joinedDf$FAS),]) > 0){
-        joinedDf[is.na(joinedDf$FAS),]$value <- 1
-      }
-      
-      ### return node data
-      subNodeDf <- joinedDf[,c("id","label","title","group","value","color")]
-      return(subNodeDf)
     } else {
       nodeDf$color <- "#878787"
       nodeDf$title <- nodeDf$id
       nodeDf$label <- nodeDf$id
       nodeDf$shape <- "box"
+      nodeDf$shadow <- FALSE
       return(nodeDf)
     }
   })
@@ -214,48 +275,83 @@ shinyServer(function(input, output, session) {
   })
   
   ##### RENDER NETWORK #####
+  ### reset visOptions
+  observeEvent(input$resetVisOption, {
+    shinyjs::reset("performance")
+    shinyjs::reset("maxSpeed")
+  })
+  
+  ### create network
   networkPlot <- reactive({
     nodeData <- nodeData()
     edgeData <- edgeData()
+    # print(head(nodeData))
+    # print(head(edgeData))
     if(is.null(nodeData)){return()}
     
-    if(nlevels(as.factor(nodeData$group)) > 1){
-      network <- visNetwork(nodeData, edgeData) %>%
-        # group 2 types of nodes and show legend
-        visGroups(groupname = "reference", shape = "box", color = "#878787", shadow = FALSE) %>%
-        visGroups(groupname = "annotated", shape = "circle", color = "#75F514", shadow = TRUE) %>%
-        visLegend(width = 0.1, position = "right") %>%
-        # highlight nearest nodes
-        visOptions(highlightNearest = list(enabled = T, hover = T),  nodesIdSelection = TRUE, selectedBy = "group", collapse = TRUE) %>%
-        # set fix randomSeed for getting the same network everytime
-        visLayout(randomSeed = 123) %>%
-        # physical parameters
-        visPhysics(stabilization = TRUE, maxVelocity = input$maxSpeed) %>%
-        visEvents(click = "function(nodes){
-                  Shiny.onInputChange('click', nodes.nodes[0]);
-                  ;}") %>% 
-        # export
-        visExport(type = "pdf", name = input$pathID, float = "top", style = "warning") %>% addExport(pdf = TRUE)
-    } else {
-      network <- visNetwork(nodeData, edgeData) %>%
-        # highlight nearest nodes
-        visOptions(highlightNearest = list(enabled = T, hover = T),  nodesIdSelection = TRUE, collapse = TRUE) %>%
-        # set fix randomSeed for getting the same network everytime
-        visLayout(randomSeed = 123) %>%
-        # physical parameters
-        visPhysics(stabilization = TRUE, maxVelocity = input$maxSpeed) %>%
-        visEvents(click = "function(nodes){
-                  Shiny.onInputChange('click', nodes.nodes[0]);
-                  ;}") %>% 
-        # export
-        visExport(type = "pdf", name = input$pathID, float = "top", style = "warning") %>% addExport(pdf = TRUE)
-    }
+    network <- visNetwork(nodeData, edgeData, main = input$pathName) %>%
+      # highlight nearest nodes
+      visOptions(highlightNearest = list(enabled = TRUE, hover = FALSE),  nodesIdSelection = TRUE, collapse = TRUE) %>%
+      # set fix randomSeed for getting the same network everytime
+      visLayout(randomSeed = 123) %>%
+      # physical parameters
+      visPhysics(stabilization = TRUE, maxVelocity = input$maxSpeed) %>%
+      visEvents(click = "function(nodes){
+                Shiny.onInputChange('click', nodes.nodes[0]);
+                ;}") %>% 
+      # export
+      visExport(type = "pdf", name = input$pathID, float = "top", style = "warning") %>% addExport(pdf = TRUE)
     
     return(network)
   })
   
+  ### create legend for mapped network
+  networkPlotLegend <- reactive({
+    nodeData <- nodeData()
+    network <- networkPlot()
+    
+    if(nlevels(as.factor(nodeData$group)) > 1){
+      # create legend info
+      lnodes <- nodeData %>% select(group,color,shape) %>% dplyr::rename(label=group)
+      lnodes <- lnodes[!duplicated(lnodes$label),]
+      groupList <- as.character(levels(as.factor(lnodes$label)))
+      for(i in 1:length(groupList)){
+        lnodes$label[lnodes$label == groupList[i]] <- paste0("group_",i)
+      }
+      lnodes %>% distinct %>% mutate(title=label)
+      lnodes <- lnodes[order(lnodes$label),]
+      
+      # create mapped network with legend
+      networkLegend <- network %>% visLegend(position = "right",addNodes = lnodes,useGroups=F) %>% visOptions(selectedBy = "group", highlightNearest = list(enabled = TRUE, hover = FALSE),  nodesIdSelection = TRUE, collapse = TRUE) 
+      return(networkLegend)
+    } else {
+      return(network)
+    }
+  })
+  
+  ### increase performance of the visualization
+  networkPlotFinal <- reactive({
+    nodeData <- nodeData()
+    networkPlot <- networkPlotLegend()
+    
+    # disable visEdges smooth
+    maxNode <- (1-input$performance)*100 + 30
+    if(length(nodeData$id) >= maxNode){
+      networkPlot <- networkPlot %>% visEdges(smooth = FALSE) 
+                      # %>% visIgraphLayout()
+    }
+    
+    # use iGraph layout
+    if(length(nodeData$id) > 500){
+      networkPlot <- networkPlot %>% visIgraphLayout()
+    }
+    
+    return(networkPlot)
+  })
+  
+  ### output network
   output$plot <- renderVisNetwork({
-    networkPlot()
+    networkPlotFinal()
   })
   
   ##### render selected node #####
@@ -296,32 +392,32 @@ shinyServer(function(input, output, session) {
   })
   
   ##### generate node property table #####
-  # createLink <- function(id) {
-  #   sprintf('<a href="http://www.genome.jp/dbget-bin/www_bget?" target="_blank" class="btn btn-primary">link</a>',id)
-  # }
-  
   nodeProp <- reactive({
     # get node and edge data
     nodeDf <- nodeData()
     edgeDf <- edgeData()
     edgeDf <- edgeDf[edgeDf$from %in% nodeDf$id & edgeDf$to %in% nodeDf$id,]
-    
+
     # calculate node degrees
     nodeDegree <- data.frame("id" = nodeDf$id)
+    
     allConnect <- c(as.character(edgeDf$from), as.character(edgeDf$to))
     if(length(allConnect) > 0){
       degree <- as.data.frame(table(allConnect))
       colnames(degree) <- c("id","Degree")
-      nodeDegree <- merge(nodeDegree, degree, by="id")
+      nodeDegree <- merge(nodeDegree, degree, by="id", all.x = TRUE)
     } else {
       nodeDegree$Degree <- 0
+    }
+
+    if(nrow(nodeDegree[is.na(nodeDegree$Degree),]) > 0){
+      nodeDegree[is.na(nodeDegree$Degree),]$Degree <- 0
     }
     
     # get node information from input file
     annoDf <- annoDf()
-    # print(head(annoDf))
+    
     if(is.null(annoDf)){
-      # nodeDegree$href <- createLink(nodeDegree$id)
       nodeDegree$href <- paste0("http://www.genome.jp/dbget-bin/www_bget?",nodeDegree$id)
       colnames(nodeDegree) <- c("Node","Degree","Link")
       return(nodeDegree)
@@ -343,6 +439,7 @@ shinyServer(function(input, output, session) {
     if (is.null(nodeProp())){return ()}
     
     nodeProp <- nodeProp()
+    labelMean <- paste0("mean = ",round(mean(nodeProp$Degree),2))
     
     if(input$distPlotType == "Density"){
       p <- ggplot(nodeProp, aes(x=Degree)) +
@@ -350,7 +447,7 @@ shinyServer(function(input, output, session) {
         geom_density(alpha = .2, fill='#7ea4d6', color="#7ea4d6") +
         geom_vline(data=nodeProp, aes(xintercept=mean(nodeProp$Degree),colour="mean"),
                    linetype="solid", size=.5) +
-        scale_color_manual(name = "", values = c(mean = "red")) +
+        scale_color_manual(name = "", values = c(mean = "red"), label = labelMean) +
         theme_minimal()
       p <- p + theme(legend.title = element_blank(), legend.text = element_text(size=input$distTextSize),
                      axis.text = element_text(size=input$distTextSize), axis.title = element_text(size=input$distTextSize))
@@ -360,7 +457,7 @@ shinyServer(function(input, output, session) {
         geom_histogram(binwidth=.5, alpha = .8, position="identity") +
         geom_vline(data=nodeProp, aes(xintercept=mean(nodeProp$Degree),colour="mean"),
                    linetype="solid", size=.5) +
-        scale_color_manual(name = "", values = c(mean = "red")) +
+        scale_color_manual(name = "", values = c(mean = "red"), label = labelMean) +
         theme_minimal()
       p <- p + theme(legend.title = element_blank(), legend.text = element_text(size=input$distTextSize),
                      axis.text = element_text(size=input$distTextSize), axis.title = element_text(size=input$distTextSize))

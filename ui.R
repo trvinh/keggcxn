@@ -1,6 +1,13 @@
 if (!require("shiny")) {install.packages("shiny")}
 if (!require("shinyBS")) {install.packages("shinyBS")}
 if (!require("shinyjs")) {install.packages("shinyjs")}
+if (!require("visNetwork")) {install.packages("visNetwork")}
+if (!require("shinycssloaders")) {
+  if("devtools" %in% installed.packages() == FALSE){
+    install.packages("devtools")
+  }
+  devtools::install_github('andrewsali/shinycssloaders')
+}
 
 shinyUI(
   fluidPage(
@@ -28,40 +35,49 @@ shinyUI(
           fluidRow(
             column(
               2,
-              uiOutput("mainInput")
+              # uiOutput("mainInput")
+              fileInput("mainInput","Annotated file:")
             ),
             column(
               2,
               uiOutput("pathID.ui")
             ),
             column(
-              4,
+              3,
               uiOutput("pathSelect"),
               textOutput("pathDesc")
             ),
             column(
-              4,
+              3,
+              uiOutput("sourceList.ui"),
               radioButtons(
                 inputId="filterNodes",
                 label="Remove un-annotated node(s):",
                 choices=list("no","yes"),
                 selected="no",
                 inline=T
-              ),
-              sliderInput("maxSpeed",
-                          "Max velocity:", min = 0, max = 500, step = 5, value = 10, width = 200)
+              )
+            ),
+            column(
+              2,
+              bsButton("visOption","visOptions")
             )
           )
         ),
         
         column(
-          8,
+          9,
           uiOutput("msg"),
-          visNetworkOutput("plot",height = "600px")
+          withSpinner(visNetworkOutput("plot",height = "600px")),
+          conditionalPanel(
+            condition = "output.fileUploaded == true",
+            h5("Patristic distance to reference orthologs"),
+            img(src='FAS_color_scale.png', width="60%")
+          )
         ),
         
         column(
-          4,
+          3,
           h4("Selected Node"),
           verbatimTextOutput("clickedNode"),
           
@@ -92,6 +108,17 @@ shinyUI(
           uiOutput("stat.ui")
         )
       )
+    ),
+    
+    ####### popup to confirm parsing data from input file
+    bsModal(
+      "visOptionBs", "visOptions", "visOption", size = "small",
+      sliderInput("performance",
+                  "Performance:", min = 0, max = 1, step = 0.1, value = 1, width = 200),
+      sliderInput("maxSpeed",
+                  "Max velocity:", min = 0, max = 1000, step = 10, value = 10, width = 200),
+      hr(),
+      bsButton("resetVisOption","Default")
     )
   )
 )

@@ -459,3 +459,19 @@
 07112	1,2-Diphenyl substitution family	Skeleton-based classification	Drug Development
 07114	Naphthalene family	Skeleton-based classification	Drug Development
 07117	Benzodiazepine family	Skeleton-based classification	Drug Development
+90001	Amino acid metabolism	Metabolism	Metabolism
+90002	Carbohydrate metabolism	Metabolism	Metabolism
+90003	Cell growth and death	Cellular Processes	Cellular Processes
+90004	Cell motility	Cellular Processes	Cellular Processes
+90005	Energy metabolism	Metabolism	Metabolism
+90006	Folding, sorting and degradation	Genetic Information Processing	Genetic Information Processing
+90007	Lipid metabolism	Metabolism	Metabolism
+90008	Membrane transport	Information Processing	Information Processing
+90009	Metabolism of cofactors and vitamins	Metabolism	Metabolism
+90010	Metabolism of other amino acids	Metabolism	Metabolism
+90011	Metabolism of terpenoids and polyketides	Metabolism	Metabolism
+90012	Nucleotide metabolism	Metabolism	Metabolism
+90013	Replication and repair	Genetic Information Processing	Genetic Information Processing
+90014	Signal transduction	Environmental Information Processing	Environmental Information Processing
+90015	Translation	Genetic Information Processing	Genetic Information Processing
+90016	Transport and catabolism	Cellular Processes	Cellular Processes
