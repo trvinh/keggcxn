@@ -117,6 +117,9 @@ shinyUI(
                   "Performance:", min = 0, max = 1, step = 0.1, value = 1, width = 200),
       sliderInput("maxSpeed",
                   "Max velocity:", min = 0, max = 1000, step = 10, value = 10, width = 200),
+      selectInput('layout', label = "iGraph layout:",
+                  choices = c("layout_nicely","layout.fruchterman.reingold","layout.kamada.kawai","layout.lgl","layout.mds","layout.reingold.tilford","layout.sphere","layout.star"),
+                  selected = "layout_nicely"),
       hr(),
       bsButton("resetVisOption","Default")
     )

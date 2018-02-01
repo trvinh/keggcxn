@@ -352,7 +352,7 @@ shinyServer(function(input, output, session) {
     
     # use iGraph layout
     if(length(nodeData$id) > 500){
-      networkPlot <- networkPlot %>% visIgraphLayout()# %>% visPhysics(stabilization = FALSE)
+      networkPlot <- networkPlot %>% visIgraphLayout(layout = input$layout)# %>% visPhysics(stabilization = FALSE)
     }
     
     return(networkPlot)
