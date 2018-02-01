@@ -195,7 +195,7 @@ shinyServer(function(input, output, session) {
             joinedDf[joinedDf$id == dupID[i],]$joinedGroup <- toString(unique(sort(joinedDf[joinedDf$id == dupID[i],]$source)))
           }
           
-          # get max FAS, min Dist and corresponding Color for joined nodes
+          # get max FAS and min Dist for joined nodes
           aggrDist <- aggregate(joinedDf[,"patristicDist"],list(joinedDf$id),FUN="min")
           colnames(aggrDist) <- c("id","patristicDist")
           
@@ -203,29 +203,38 @@ shinyServer(function(input, output, session) {
           colnames(aggrFAS) <- c("id","FAS")
           
           aggrDf <- merge(aggrFAS, aggrDist, by="id")
-          for(i in 1:nrow(aggrFAS)){
-            aggrDf$joinedColor[i] <- joinedDf[joinedDf$id %in% aggrDf$id[i] & joinedDf$FAS %in% aggrDf$FAS[i],]$color[1]
-          }
+          # for(i in 1:nrow(aggrFAS)){
+          #   aggrDf$joinedColor[i] <- joinedDf[joinedDf$id %in% aggrDf$id[i] & joinedDf$FAS %in% aggrDf$FAS[i],]$color[1]
+          # }
           
           # remove duplicated IDs from joinedDf and merge with aggrDf
           joinedDf <- joinedDf[!duplicated(joinedDf$id),]
           joinedDf <- merge(aggrDf, joinedDf, by="id", all.x = TRUE)
           
-          # return joinedDf after removing duplicated nodes
-          joinedDf <- joinedDf[,c("id","joinedGroup","FAS.x","joinedGeneID","joinedColor","patristicDist.x")]
-          colnames(joinedDf) <- c("id","group","FAS","geneID","color","patristicDist")
+          # select needed columns of joinedDf
+          joinedDf <- joinedDf[,c("id","joinedGroup","FAS.x","joinedGeneID","patristicDist.x")]
+          colnames(joinedDf) <- c("id","group","FAS","geneID","patristicDist")
         } 
         # else {
-        #   print("NO DUP LINES")
-        #   # colnames(joinedDf) <- c("id","geneID","FAS","geneID","color","patristicDist")
-        #   print(head(joinedDf))
+        #   # select needed columns of joinedDf
+        #   joinedDf <- joinedDf[,c("id","joinedGroup","FAS.x","joinedGeneID","patristicDist.x","color")]
+        #   colnames(joinedDf) <- c("id","group","FAS","geneID","patristicDist","color")
         # }
+
+        ### create node color based on patristic distance
+        colorCodeDf = data.frame("colorLv" = c(0,1,2,3,4,5,6,7,8,9,10), 
+                                 "color" = c('#AE250A','#A8390B','#A24E0C','#9C630D','#97780E','#918D0F','#8BA110','#86B611','#80CB12','#7AE013','#75F514'))
+        joinedDf$colorLv <- 10 - as.integer(as.numeric(joinedDf$patristicDist)*10)
+        joinedDf <- merge(joinedDf,colorCodeDf, by = "colorLv", all.x = TRUE)
+        drop <- c("colorLv")
+        joinedDf <- joinedDf[ , !(names(joinedDf) %in% drop)]
         
-        ### node color(~distance), title, label, size(~FAS)
+        joinedDf$color <- as.character(joinedDf$color)
         if(nrow(joinedDf[is.na(joinedDf$color),]) > 0){
           joinedDf[is.na(joinedDf$color),]$color <- "#878787"
         }
         
+        ### node title, label, size(~FAS)
         joinedDf <- dplyr::rename(joinedDf, title = geneID)
         if(nrow(joinedDf[is.na(joinedDf$title),]) > 0){
           joinedDf[is.na(joinedDf$title),]$title <- as.character(joinedDf[is.na(joinedDf$title),]$id)
@@ -285,8 +294,9 @@ shinyServer(function(input, output, session) {
   networkPlot <- reactive({
     nodeData <- nodeData()
     edgeData <- edgeData()
-    # print(head(nodeData))
-    # print(head(edgeData))
+    # print(nrow(nodeData))
+    # print(nrow(edgeData))
+    
     if(is.null(nodeData)){return()}
     
     network <- visNetwork(nodeData, edgeData, main = input$pathName) %>%
@@ -337,13 +347,12 @@ shinyServer(function(input, output, session) {
     # disable visEdges smooth
     maxNode <- (1-input$performance)*100 + 30
     if(length(nodeData$id) >= maxNode){
-      networkPlot <- networkPlot %>% visEdges(smooth = FALSE) 
-                      # %>% visIgraphLayout()
+      networkPlot <- networkPlot %>% visEdges(smooth = FALSE)# %>% visPhysics(stabilization = FALSE)
     }
     
     # use iGraph layout
     if(length(nodeData$id) > 500){
-      networkPlot <- networkPlot %>% visIgraphLayout()
+      networkPlot <- networkPlot %>% visIgraphLayout()# %>% visPhysics(stabilization = FALSE)
     }
     
     return(networkPlot)
