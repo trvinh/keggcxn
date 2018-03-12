@@ -1,7 +1,10 @@
 if (!require("DT")) {install.packages("DT")}
 if (!require("dplyr")) {install.packages("dplyr")}
+if (!require("reshape")) {install.packages("reshape")}
 if (!require("ggplot2")) {install.packages("ggplot2")}
 if (!require("visNetwork")) {install.packages("visNetwork")}
+if (!require("igraph")) {install.packages("igraph")}
+if (!require("NetIndices")) {install.packages("NetIndices")}
 
 shinyServer(function(input, output, session) {
   session$allowReconnect(TRUE)
@@ -23,6 +26,14 @@ shinyServer(function(input, output, session) {
     return(pathDf)
   })
   
+  output$pathID.ui <- renderUI({
+    pathDf <- pathDf()
+    pathDf$pathID <- factor(pathDf$pathID, levels = unique(pathDf$pathID))
+    selectInput('pathID', label = "Pathway ID:",
+                choices = as.list(levels(pathDf$pathID)),
+                selected = levels(pathDf$pathID)[93])
+  })
+  
   output$pathSelect <- renderUI({
     pathDf <- pathDf()
     pathDf$pathName <- factor(pathDf$pathName, levels = unique(pathDf$pathName))
@@ -32,16 +43,30 @@ shinyServer(function(input, output, session) {
                 selected = levels(pathDf$pathName)[93])
   })
   
-  output$pathID.ui <- renderUI({
+  output$multiPathID.ui <- renderUI({
     pathDf <- pathDf()
     pathDf$pathID <- factor(pathDf$pathID, levels = unique(pathDf$pathID))
+    selectedIDs <- c(levels(pathDf$pathID)[9],levels(pathDf$pathID)[10],levels(pathDf$pathID)[11])
     
-    selectInput('pathID', label = "Pathway ID:",
+    selectInput('multiPathID', label = "Pathway ID:",
                 choices = as.list(levels(pathDf$pathID)),
-                selected = levels(pathDf$pathID)[93])
+                selected = selectedIDs,
+                multiple = TRUE)
   })
   
-  ### Update value of selected pathID and pathName
+  output$multiPathSelect <- renderUI({
+    pathDf <- pathDf()
+    pathDf$pathName <- factor(pathDf$pathName, levels = unique(pathDf$pathName))
+    selectedNames <- c(levels(pathDf$pathName)[9],levels(pathDf$pathName)[10],levels(pathDf$pathName)[11])
+
+    selectInput('multiPathName', label = "Pathway name:",
+                choices = as.list(levels(pathDf$pathName)),
+                selected = selectedNames,
+                selectize=FALSE,
+                multiple = TRUE)
+  })
+
+  ### Update value(s) of selected pathID/multiPathID and pathName/multiPathName
   observe({
     if(!is.null(input$pathID)){
       pathDf <- pathDf()
@@ -66,6 +91,34 @@ shinyServer(function(input, output, session) {
         session, 'pathID', label = "Pathway ID:",
         choices = as.list(levels(pathDf$pathID)),
         selected = selectedID
+      )
+    }
+  })
+  
+  observe({
+    if(!is.null(input$multiPathID)){
+      pathDf <- pathDf()
+      pathDf$pathName <- factor(pathDf$pathName, levels = unique(pathDf$pathName))
+      selectedNames <- pathDf[pathDf$pathID %in% input$multiPathID,]$pathName
+      
+      updateSelectInput(
+        session, 'multiPathName', label = "Pathway Name:",
+        choices = as.list(levels(pathDf$pathName)),
+        selected = selectedNames
+      )
+    }
+  })
+  
+  observe({
+    if(!is.null(input$multiPathName)){
+      pathDf <- pathDf()
+      pathDf$pathID <- factor(pathDf$pathID, levels = unique(pathDf$pathID))
+      selectedIDs <- pathDf[pathDf$pathName %in% input$multiPathName,]$pathID
+      
+      updateSelectInput(
+        session, 'multiPathID', label = "Pathway ID:",
+        choices = as.list(levels(pathDf$pathID)),
+        selected = selectedIDs
       )
     }
   })
@@ -101,10 +154,10 @@ shinyServer(function(input, output, session) {
     }
   })
   
-  networkDf <- reactive({
-    if(is.null(input$pathID)){return ()}
-    else {
-      cxnFile <- suppressWarnings(paste0("data/keggcxn/",input$pathID,".cxn"))
+  networkDf <- function(pathID){
+    # if(is.null(input$pathID)){return ()}
+    # else {
+      cxnFile <- suppressWarnings(paste0("data/keggcxn/",pathID,".cxn"))
       if(file.exists(cxnFile)){
         inputDf <- as.data.frame(read.table(cxnFile, sep='\t',header=F,check.names=FALSE,comment.char=""))
         colnames(inputDf) <- c("from","to","interaction")
@@ -113,8 +166,8 @@ shinyServer(function(input, output, session) {
       } else {
         return()
       }
-    }
-  })
+    # }
+  }
   
   ##### read input file #####
   annoDf <- reactive({
@@ -136,9 +189,8 @@ shinyServer(function(input, output, session) {
   })
   
   ##### get list of nodes and mark annotated nodes from input file #####
-  nodeData <- reactive({
-    inputDf <- networkDf()
-    
+  nodeDataPre <- function(pathID){
+    inputDf <- networkDf(pathID)
     if(is.null(inputDf)){return()}
     
     ### join source and target KOs to get full list of nodes for reference network
@@ -148,9 +200,7 @@ shinyServer(function(input, output, session) {
     colnames(targetDf) <- "id"
     
     nodeDf <- unique(rbind(sourceDf,targetDf))
-    # nodeDf$group <- "reference"
     
-    ### read annotated data
     annoDf <- annoDf()
     if(!is.null(annoDf)){
       ### filter data based on selected source species
@@ -169,6 +219,22 @@ shinyServer(function(input, output, session) {
         # joinedDf <- joinedDf[complete.cases(joinedDf),]
         joinedDf <- joinedDf[!is.na(joinedDf$geneID),]
       }
+      
+      return(joinedDf)
+    } else {
+      return(nodeDf)
+    }
+  }
+  
+  nodeData <- reactive({
+    inputDf <- networkDf(input$pathID)
+    
+    if(is.null(inputDf)){return()}
+    
+    ### read annotated data
+    annoDf <- annoDf()
+    if(!is.null(annoDf)){
+      joinedDf <- nodeDataPre(input$pathID)
       
       if(nrow(joinedDf) == 0){
         nodeEmpty <- data.frame("id"="1","label"="Selected source taxon does not have any annotated proteins","title"="EMPTY","color"="white")
@@ -220,7 +286,7 @@ shinyServer(function(input, output, session) {
         #   joinedDf <- joinedDf[,c("id","joinedGroup","FAS.x","joinedGeneID","patristicDist.x","color")]
         #   colnames(joinedDf) <- c("id","group","FAS","geneID","patristicDist","color")
         # }
-
+        
         ### create node color based on patristic distance
         colorCodeDf = data.frame("colorLv" = c(0,1,2,3,4,5,6,7,8,9,10), 
                                  "color" = c('#AE250A','#A8390B','#A24E0C','#9C630D','#97780E','#918D0F','#8BA110','#86B611','#80CB12','#7AE013','#75F514'))
@@ -267,6 +333,7 @@ shinyServer(function(input, output, session) {
         return(subNodeDf)
       }
     } else {
+      nodeDf <- nodeDataPre(input$pathID)
       nodeDf$color <- "#878787"
       nodeDf$title <- nodeDf$id
       nodeDf$label <- nodeDf$id
@@ -278,7 +345,7 @@ shinyServer(function(input, output, session) {
   
   ##### get list of edges #####
   edgeData <- reactive({
-    inputDf <- networkDf()
+    inputDf <- networkDf(input$pathID)
     edgeDf <- inputDf[,(1:2)]
     return(edgeDf)
   })
@@ -288,6 +355,7 @@ shinyServer(function(input, output, session) {
   observeEvent(input$resetVisOption, {
     shinyjs::reset("performance")
     shinyjs::reset("maxSpeed")
+    shinyjs::reset("layout")
   })
   
   ### create network
@@ -313,16 +381,18 @@ shinyServer(function(input, output, session) {
       visExport(type = "pdf", name = input$pathID, float = "top", style = "warning") %>% addExport(pdf = TRUE)
     
     return(network)
-  })
+})
   
   ### create legend for mapped network
   networkPlotLegend <- reactive({
     nodeData <- nodeData()
     network <- networkPlot()
-    
+
     if(nlevels(as.factor(nodeData$group)) > 1){
       # create legend info
-      lnodes <- nodeData %>% select(group,color,shape) %>% dplyr::rename(label=group)
+      lnodes <- nodeData[,c("group","color","shape")]
+      lnodes <- lnodes %>% dplyr::rename(label=group)
+      # lnodes <- nodeData %>% select(group,color,shape) %>% dplyr::rename(label=group)
       lnodes <- lnodes[!duplicated(lnodes$label),]
       groupList <- as.character(levels(as.factor(lnodes$label)))
       for(i in 1:length(groupList)){
@@ -330,10 +400,11 @@ shinyServer(function(input, output, session) {
       }
       lnodes %>% distinct %>% mutate(title=label)
       lnodes <- lnodes[order(lnodes$label),]
-      
+
       # create mapped network with legend
-      networkLegend <- network %>% visLegend(position = "right",addNodes = lnodes,useGroups=F) %>% visOptions(selectedBy = "group", highlightNearest = list(enabled = TRUE, hover = FALSE),  nodesIdSelection = TRUE, collapse = TRUE) 
+      networkLegend <- network %>% visLegend(position = "right",addNodes = lnodes,useGroups=F) %>% visOptions(selectedBy = "group", highlightNearest = list(enabled = TRUE, hover = FALSE),  nodesIdSelection = TRUE, collapse = TRUE)
       return(networkLegend)
+      # return(network)
     } else {
       return(network)
     }
@@ -392,36 +463,131 @@ shinyServer(function(input, output, session) {
     # return list
     connectedNodesOut <- connectedNodesOut[,c("id","title")]
     colnames(connectedNodesOut) <- c("Node","Desc")
-
+    
     return(connectedNodesOut)
   })
-
+  
   output$connectedNodes <- DT::renderDataTable({
     DT::datatable(connectedNodes(), style='bootstrap', options=list(pageLength=5, sDom  = '<"top">lrt<"bottom">ip'))
   })
   
   ##### generate node property table #####
-  nodeProp <- reactive({
+  igraphObj <- reactive({
     # get node and edge data
     nodeDf <- nodeData()
     edgeDf <- edgeData()
     edgeDf <- edgeDf[edgeDf$from %in% nodeDf$id & edgeDf$to %in% nodeDf$id,]
-
-    # calculate node degrees
-    nodeDegree <- data.frame("id" = nodeDf$id)
     
-    allConnect <- c(as.character(edgeDf$from), as.character(edgeDf$to))
-    if(length(allConnect) > 0){
-      degree <- as.data.frame(table(allConnect))
-      colnames(degree) <- c("id","Degree")
-      nodeDegree <- merge(nodeDegree, degree, by="id", all.x = TRUE)
-    } else {
-      nodeDegree$Degree <- 0
+    # create igraph object
+    graph <- graph_from_data_frame(edgeDf, directed = FALSE, vertices = nodeDf)
+  })
+  
+  netProp <- reactive({
+    graph <- igraphObj()
+    # use GenInd function from NetIndices package to output network properties
+    graph.adj<-get.adjacency(graph,sparse=FALSE)
+    graph.properties<-GenInd(graph.adj)
+    
+    # get degree for all nodes
+    all.deg.graph <- as.data.frame(degree(graph,v=V(graph),mode="all"))
+    
+    # network properties
+    netProp <- data.frame(
+      "Nodes" = graph.properties$N,  # number of nodes
+      "Edges" = graph.properties$Ltot/2, # number of links
+      "Avg_degree" = graph.properties$LD, # same as mean(all.deg.graph[,1]); link density (average # of links per node)
+      "Max_degree" = max(all.deg.graph[,1]),
+      "Avg_path_length" = average.path.length(graph, unconnected=TRUE),
+      "Diameter" = diameter(graph)
+    )
+    return(netProp)
+  })
+  
+  netPropMapped <- function(pathID){
+    if(is.null(input$mainInput)){ return()}
+    
+    inputDf <- networkDf(pathID)
+    pathDf <- pathDf()
+    
+    networkProperty <- data.frame()
+    ### read annotated data
+    annoDf <- annoDf()
+    if(!is.null(annoDf)){
+      joinedDf <- nodeDataPre(pathID)
+      
+      if(nrow(joinedDf) == 0){
+        nodeEmpty <- data.frame("id"="1","label"="Selected source taxon does not have any annotated proteins","title"="EMPTY","color"="white")
+        return(nodeEmpty)
+      } else {
+        ### change group type for reference nodes
+        # if(length(unique(complete.cases(joinedDf))) > 1){
+        if(nrow(joinedDf[is.na(joinedDf$geneID),]) > 0){
+          joinedDf[is.na(joinedDf$geneID),]$group <- "reference"
+        }
+        joinedDf <- joinedDf[!is.na(joinedDf$source),]
+        for(source in levels(as.factor(joinedDf$source))){
+          # node data
+          nodeDf <- data.frame("id" = as.character(unique(joinedDf[joinedDf$source == source,"id"])))
+          ### edge data
+          edgeDf <- inputDf[,(1:2)]
+          edgeDf <- edgeDf[edgeDf$from %in% nodeDf$id & edgeDf$to %in% nodeDf$id,]
+          
+          # create igraph object
+          graph <- graph_from_data_frame(edgeDf, directed = FALSE, vertices = nodeDf)
+          
+          # use GenInd function from NetIndices package to output network properties
+          graph.adj<-get.adjacency(graph,sparse=FALSE)
+          graph.properties<-GenInd(graph.adj)
+          
+          # get degree for all nodes
+          all.deg.graph <- as.data.frame(degree(graph,v=V(graph),mode="all"))
+          
+          # network properties
+          netProp <- data.frame(
+            "Nodes" = graph.properties$N,  # number of nodes
+            "Edges" = graph.properties$Ltot/2, # number of links
+            "Avg_Degree" = round(graph.properties$LD,2), # same as mean(all.deg.graph[,1]); link density (average # of links per node)
+            "Max_Degree" = max(all.deg.graph[,1]),
+            "Avg_Path_Len" = round(average.path.length(graph, unconnected=TRUE),2),
+            "Diameter" = diameter(graph)
+          )
+          
+          netProp$Pathway <- pathDf[pathDf$pathID == pathID,]$pathName
+          netProp$Source <- source
+          networkProperty <- rbind(networkProperty,netProp)
+        }
+        # return(networkProperty)
+      }
     }
+    networkProperty <- networkProperty[,c("Pathway","Source","Nodes","Edges","Avg_Degree","Max_Degree","Avg_Path_Len","Diameter")]
 
-    if(nrow(nodeDegree[is.na(nodeDegree$Degree),]) > 0){
-      nodeDegree[is.na(nodeDegree$Degree),]$Degree <- 0
+    return(networkProperty)
+  }
+  
+  multiNetProp <- reactive({
+    pathIDs <- input$multiPathID
+    multiNetProperty <- data.frame()
+    for(pathID in pathIDs){
+      netProp <- netPropMapped(pathID)
+      multiNetProperty <- rbind(multiNetProperty,netProp)
     }
+    
+    # multiNetProperty <- netPropMapped(input$pathID)
+    return(multiNetProperty)
+  })
+  
+  nodeProp <- reactive({
+    graph <- igraphObj()
+    
+    # use GenInd function from NetIndices package to output network properties
+    graph.adj<-get.adjacency(graph,sparse=FALSE)
+    graph.properties<-GenInd(graph.adj)
+    
+    # get degree for all nodes
+    nodeDegree <- as.data.frame(degree(graph,v=V(graph),mode="all"))
+    colnames(nodeDegree) <- c("Degree")
+    nodeDegree$id = rownames(nodeDegree)
+    nodeDegree <- nodeDegree[,c("id","Degree")]
     
     # get node information from input file
     annoDf <- annoDf()
@@ -440,9 +606,33 @@ shinyServer(function(input, output, session) {
   })
   
   ##### network statistics #####
-  output$stat.table <- renderDataTable({
-    datatable(nodeProp(), style='bootstrap', options=list(pageLength=5, sDom  = '<"top">lrt<"bottom">ip'), filter = "bottom")
+  ### network statistic tab
+  output$stat.network.table <- renderTable({
+    netProp()
   })
+  
+  output$stat.network.table.mapped <- renderDataTable({
+    datatable(
+      netPropMapped(input$pathID), 
+      style='bootstrap', 
+      options=list(pageLength=5), 
+      rownames = FALSE)
+  })
+  
+  output$stat.node.table <- renderDataTable({
+    datatable(
+      nodeProp(), 
+      style='bootstrap', 
+      options=list(pageLength=5), 
+      rownames = FALSE)
+  })
+  
+  output$download_stat.node.table <- downloadHandler(
+    filename = function(){c("node_properties.txt")},
+    content = function(file){
+      write.table(nodeProp(),file,sep="\t",row.names = FALSE,quote = FALSE)
+    }
+  )
   
   degreeDistPlot <- reactive({
     if (is.null(nodeProp())){return ()}
@@ -458,8 +648,8 @@ shinyServer(function(input, output, session) {
                    linetype="solid", size=.5) +
         scale_color_manual(name = "", values = c(mean = "red"), label = labelMean) +
         theme_minimal()
-      p <- p + theme(legend.title = element_blank(), legend.text = element_text(size=input$distTextSize),
-                     axis.text = element_text(size=input$distTextSize), axis.title = element_text(size=input$distTextSize))
+      p <- p + theme(legend.title = element_blank(), legend.text = element_text(size=input$textLegend),
+                     axis.text = element_text(size=input$textSize), axis.title = element_text(size=input$textSize))
       return(p)
     } else {
       p <- ggplot(nodeProp, aes(x=Degree)) +
@@ -468,8 +658,8 @@ shinyServer(function(input, output, session) {
                    linetype="solid", size=.5) +
         scale_color_manual(name = "", values = c(mean = "red"), label = labelMean) +
         theme_minimal()
-      p <- p + theme(legend.title = element_blank(), legend.text = element_text(size=input$distTextSize),
-                     axis.text = element_text(size=input$distTextSize), axis.title = element_text(size=input$distTextSize))
+      p <- p + theme(legend.title = element_blank(), legend.text = element_text(size=input$textLegend),
+                     axis.text = element_text(size=input$textSize), axis.title = element_text(size=input$textSize))
       return(p)
     }
   })
@@ -478,7 +668,7 @@ shinyServer(function(input, output, session) {
     degreeDistPlot()
   })
   
-  output$stat.ui <- renderUI({
+  output$degreePlot.ui <- renderUI({
     plotOutput("degreeDistPlot")
   })
   
@@ -486,6 +676,109 @@ shinyServer(function(input, output, session) {
     filename = function() {paste0("distributionPlot.pdf")},
     content = function(file) {
       ggsave(file, plot = degreeDistPlot(), dpi=300, device = "pdf", limitsize=FALSE)
+    }
+  )
+  
+  ### multi network analysis tab
+  output$stat.multinetwork.table <- renderDataTable({
+    datatable(
+      multiNetProp(), 
+      style='bootstrap', 
+      options=list(pageLength=5), 
+      rownames = FALSE)
+  })
+  
+  ### properties statistics
+  networkPropStat <- reactive({
+    networkProperty <- multiNetProp()
+
+    if(nrow(networkProperty) == 0){return()}
+    
+    meltedNetworkProp <- melt(networkProperty, id.vars = c("Pathway","Source"))
+    colnames(meltedNetworkProp) <- c("Pathway","Source","Property","Value")
+    
+    meltedNetworkProp$Property <- as.character(meltedNetworkProp$Property)
+    meltedNetworkProp$Property[meltedNetworkProp$Property == "Avg_Degree"] <- "Avg. degree"
+    meltedNetworkProp$Property[meltedNetworkProp$Property == "Avg_Path_Len"] <- "Avg. path length"
+
+    return(meltedNetworkProp)
+  })
+    
+  ### for nodes and edges
+  nodes_edges_plot <- reactive({
+    meltedNetworkProp <- networkPropStat()
+    if (is.null(meltedNetworkProp)){return ()}
+    
+    meltedNetworkPropSub2 <- meltedNetworkProp[meltedNetworkProp$Property %in% c("Nodes","Edges"),]
+    meltedNetworkPropSub2$Property <- factor(meltedNetworkPropSub2$Property, levels = c("Nodes","Edges"))
+    
+    p <- ggplot(meltedNetworkPropSub2, aes(x=Pathway, y=Value,fill=Source)) +
+      facet_wrap( ~ Property) +
+      geom_point(aes(col=Source)) +
+      coord_flip() +
+      labs(y="Count") +
+      theme(axis.title.x = element_text(size=input$textSizeNodes), axis.text.x = element_text(size=input$textSizeNodes),
+            axis.title.y = element_text(size=input$textSizeNodes), axis.text.y = element_text(size=input$textSizeNodes),
+            axis.ticks.x = element_blank(),
+            strip.text.x = element_text(size = input$textSizeNodes),
+            legend.position = "top", legend.text = element_text(size=input$textLegendNodes),legend.title = element_text(size=input$textLegendNodes)) +
+      scale_fill_brewer(palette = "Set2")
+    p
+    
+    return(p)
+  })
+  
+  output$nodes_edges_plot <- renderPlot({
+    nodes_edges_plot()
+  })
+  
+  output$nodes_edges.ui <- renderUI({
+    plotOutput("nodes_edges_plot",width = input$widthNodes, height = input$heightNodes)
+  })
+  
+  output$plotDownload_nodes_edges <- downloadHandler(
+    filename = function() {paste0("network_node_edge.pdf")},
+    content = function(file) {
+      ggsave(file, plot = nodes_edges_plot(), width = input$widthNodes*0.056458333, height = input$heightNodes*0.056458333, units="cm", dpi=300, device = "pdf", limitsize=FALSE)
+    }
+  )
+  
+  ### for avg. degree, avg. path length and max path length (density)
+  networkStatPlot <- reactive({
+    meltedNetworkProp <- networkPropStat()
+    if (is.null(meltedNetworkProp)){return ()}
+    
+    meltedNetworkPropSub <- meltedNetworkProp[!(meltedNetworkProp$Property %in% c("Nodes","Edges","Max_Degree")),]
+    
+    meltedNetworkPropSubSummary <- meltedNetworkPropSub %>%
+      group_by(Property,Source) %>%
+      summarize(mean = mean(Value))
+    
+    g <- ggplot(meltedNetworkPropSub, aes(x=Source, y=Value, fill=Source)) +
+      facet_wrap( ~ Property) +
+      geom_violin() + 
+      geom_point(data = meltedNetworkPropSubSummary, aes(y = mean), color = "black", size = 2) +
+      theme(axis.title = element_blank(),axis.text.x = element_blank(),axis.text.y = element_text(size=input$textSize),
+            axis.ticks.x = element_blank(),
+            strip.text.x = element_text(size = input$textSize),
+            legend.position = "top", legend.text = element_text(size=input$textLegend),legend.title = element_blank()) +
+      scale_fill_brewer(palette = "Set2")
+    
+    return(g)
+  })
+  
+  output$networkStatPlot <- renderPlot({
+    networkStatPlot()
+  })
+  
+  output$networkStat.ui <- renderUI({
+    plotOutput("networkStatPlot",width = input$width, height = input$height)
+  })
+  
+  output$plotDownload_networkStat <- downloadHandler(
+    filename = function() {paste0("network_stat.pdf")},
+    content = function(file) {
+      ggsave(file, plot = networkStatPlot(), width = input$width*0.056458333, height = input$height*0.056458333, units="cm", dpi=300, device = "pdf", limitsize=FALSE)
     }
   )
   

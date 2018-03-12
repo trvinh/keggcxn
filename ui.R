@@ -60,7 +60,9 @@ shinyUI(
             ),
             column(
               2,
-              bsButton("visOption","visOptions")
+              bsButton("visOption","visOptions"),
+              hr(),
+              bsButton("toPhyloProfile","Link to PhyloProfile")
             )
           )
         ),
@@ -89,8 +91,18 @@ shinyUI(
       ########## STATISTIC TAB ###########
       tabPanel(
         "Network statistic",
+        h4("NETWORK PROPERTIES"),
+        withSpinner(tableOutput("stat.network.table"), proxy.height="50px", type=7, size = 0.5),
+        hr(),
+        conditionalPanel(
+          condition = "output.fileUploaded == true",
+          h4("MAPPED NETWORK PROPERTIES"),
+          withSpinner(dataTableOutput("stat.network.table.mapped"), proxy.height="50px", type=7, size = 0.5),
+          hr()
+        ),
         h4("NODE PROPERTIES"),
-        dataTableOutput("stat.table"),
+        withSpinner(dataTableOutput("stat.node.table"), proxy.height="50px", type=7, size = 0.5),
+        downloadButton('download_stat.node.table','Export table'),
         hr(),
         h4("NODE DEGREE DISTRIBUTION"),
         column(
@@ -105,7 +117,94 @@ shinyUI(
         ),
         column(
           8,
-          uiOutput("stat.ui")
+          withSpinner(uiOutput("degreePlot.ui"), proxy.height="50px", type=7, size = 0.5)
+        )
+      ),
+      
+      ########## MULTIPLE NETWORKS ANALYSIS ###########
+      tabPanel(
+        "Multi network analysis",
+        wellPanel(
+        fluidRow(
+            column(
+              6,
+              uiOutput("multiPathID.ui")
+            ),
+            column(
+              6,
+              uiOutput("multiPathSelect")
+            )
+          )
+        ),
+        conditionalPanel(
+          condition = "output.fileUploaded == true",
+          column(
+            12,
+            h4("NETWOK PROPERTY PLOTS")
+          ),
+          ### nodes vs edges plot
+          column(
+            2,numericInput("widthNodes","Width (px)",min=300,max=3200,step=50,value=800,width=100)
+          ),
+          column(
+            2,numericInput("heightNodes","Height (px)",min=300,max=3200,step=50,value=300,width=100)
+          ),
+          column(
+            2,numericInput("textSizeNodes","Text plot",min=2,max=99,step=1,value=12,width=100)
+          ),
+          column(
+            2,numericInput("textLegendNodes","Text legend",min=2,max=99,step=1,value=12,width=100)
+          ),
+          column(
+            4,
+            strong("Download"),
+            br(),
+            tags$head(
+              tags$style(HTML('#plotDownload_nodes_edges{background-color:#A9E2F3}'))
+            ),
+            downloadButton('plotDownload_nodes_edges','Download plot')
+          ),
+          column(
+            12,
+            withSpinner(uiOutput("nodes_edges.ui"), proxy.height="50px", type=7, size = 0.5),
+            hr()
+          ),
+          
+          ### degree and path length plot
+          column(
+            2,numericInput("width","Width (px)",min=300,max=3200,step=50,value=800,width=100)
+          ),
+          column(
+            2,numericInput("height","Height (px)",min=300,max=3200,step=50,value=300,width=100)
+          ),
+          column(
+            2,numericInput("textSize","Text plot",min=2,max=99,step=1,value=12,width=100)
+          ),
+          column(
+            2,numericInput("textLegend","Text legend",min=2,max=99,step=1,value=12,width=100)
+          ),
+          column(
+            4,
+            strong("Download"),
+            br(),
+            tags$head(
+              tags$style(HTML('#plotDownload_networkStat{background-color:#A9E2F3}'))
+            ),
+            downloadButton('plotDownload_networkStat','Download plot')
+          ),
+          column(
+            12,
+            withSpinner(uiOutput("networkStat.ui"), proxy.height="50px", type=7, size = 0.5),
+            hr()
+          ),
+          
+          ### network property table
+          column(
+            12,
+            h4("NETWORK PROPERTIES"),
+            withSpinner(dataTableOutput("stat.multinetwork.table"), proxy.height="50px", type=7, size = 0.5),
+            hr()
+          )
         )
       )
     ),
