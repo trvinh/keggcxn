@@ -239,6 +239,8 @@ shinyServer(function(input, output, session) {
         }
         
         ### remove reactions that have no enzymes (no annotated proteins)
+        inputDf <- inputDf[inputDf$id %in% annoDf$id,]  # remove ref. edges if enzyme not found in annoDf
+        
         inputDf$color[inputDf$id %in% annoDf$id] <- "red"
         inputDf$shadow[inputDf$id %in% annoDf$id] <- TRUE
         inputDf$dashes[inputDf$id %in% annoDf$id] <- FALSE
@@ -592,8 +594,6 @@ shinyServer(function(input, output, session) {
     inputDf <- networkDf(pathID)
     pathDf <- pathDf()
     
-    print(head(inputDf))
-    
     networkProperty <- data.frame()
     if(input$netType == "KO"){
       ### read annotated data
@@ -701,9 +701,7 @@ shinyServer(function(input, output, session) {
     pathIDs <- input$multiPathID
     multiNetProperty <- data.frame()
     for(pathID in pathIDs){
-      print(pathID)
       netProp <- netPropMapped(pathID)
-      print(netProp)
       multiNetProperty <- rbind(multiNetProperty,netProp)
     }
     
