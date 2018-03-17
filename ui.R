@@ -30,13 +30,17 @@ shinyUI(
       
       ########## NETWORK TAB ###########
       tabPanel(
-        "Network",
+        "Network visualization",
         wellPanel(
           fluidRow(
             column(
               2,
               # uiOutput("mainInput")
-              fileInput("mainInput","Annotated file:"),
+              fileInput("mainInput","Annotated file:")
+            ),
+            column(
+              2,
+              uiOutput("pathID.ui"),
               radioButtons(
                 inputId="netType",
                 label="Network type:",
@@ -44,10 +48,6 @@ shinyUI(
                 selected="KO",
                 inline=T
               )
-            ),
-            column(
-              2,
-              uiOutput("pathID.ui")
             ),
             column(
               3,
