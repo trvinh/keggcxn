@@ -325,7 +325,7 @@ shinyServer(function(input, output, session) {
         joinedDf$shape[joinedDf$group == "reference"] <- "box"
         
         ### add shadow
-        joinedDf$shadow <- TRUE
+        joinedDf$shadow <- FALSE#TRUE
         joinedDf$shadow[joinedDf$group == "reference"] <- FALSE
         
         ### return node data
@@ -378,7 +378,7 @@ shinyServer(function(input, output, session) {
                 Shiny.onInputChange('click', nodes.nodes[0]);
                 ;}") %>% 
       # export
-      visExport(type = "pdf", name = input$pathID, float = "top", style = "warning") %>% addExport(pdf = TRUE)
+      visExport(type = "png", name = input$pathID, float = "top", style = "warning") %>% addExport(pdf = TRUE)
     
     return(network)
 })
