@@ -30,7 +30,7 @@ shinyUI(
       
       ########## NETWORK TAB ###########
       tabPanel(
-        "Network",
+        "Network visualization",
         wellPanel(
           fluidRow(
             column(
@@ -40,7 +40,14 @@ shinyUI(
             ),
             column(
               2,
-              uiOutput("pathID.ui")
+              uiOutput("pathID.ui"),
+              radioButtons(
+                inputId="netType",
+                label="Network type:",
+                choices=list("KO","CPD"),
+                selected="KO",
+                inline=T
+              )
             ),
             column(
               3,
@@ -50,13 +57,7 @@ shinyUI(
             column(
               3,
               uiOutput("sourceList.ui"),
-              radioButtons(
-                inputId="filterNodes",
-                label="Remove un-annotated node(s):",
-                choices=list("no","yes"),
-                selected="no",
-                inline=T
-              )
+              uiOutput("removeNode.ui")
             ),
             column(
               2,
