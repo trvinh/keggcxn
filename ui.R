@@ -36,7 +36,14 @@ shinyUI(
             column(
               2,
               # uiOutput("mainInput")
-              fileInput("mainInput","Annotated file:")
+              fileInput("mainInput","Annotated file:"),
+              radioButtons(
+                inputId="netType",
+                label="Network type:",
+                choices=list("KO","CPD"),
+                selected="KO",
+                inline=T
+              )
             ),
             column(
               2,
@@ -50,13 +57,7 @@ shinyUI(
             column(
               3,
               uiOutput("sourceList.ui"),
-              radioButtons(
-                inputId="filterNodes",
-                label="Remove un-annotated node(s):",
-                choices=list("no","yes"),
-                selected="no",
-                inline=T
-              )
+              uiOutput("removeNode.ui")
             ),
             column(
               2,

@@ -19,6 +19,27 @@ shinyServer(function(input, output, session) {
   })
   outputOptions(output, 'fileUploaded', suspendWhenHidden=FALSE)
   
+  ##### render removeNode.ui #####
+  output$removeNode.ui <- renderUI({
+    if(input$netType == "KO"){
+      radioButtons(
+        inputId="filterNodes",
+        label="Remove un-annotated node(s):",
+        choices=list("no","yes"),
+        selected="no",
+        inline=T
+      )
+    } else {
+      radioButtons(
+        inputId="filterNodes",
+        label="Remove un-connected node(s):",
+        choices=list("no","yes"),
+        selected="no",
+        inline=T
+      )
+    }
+  })
+  
   ##### render list of pathway names and IDs #####
   pathDf <- reactive({
     pathDf <- as.data.frame(read.table("data/pathways.list", quote = "", sep='\t',header=FALSE,check.names=FALSE,comment.char="",colClasses=c(rep("factor",4))))
@@ -133,6 +154,9 @@ shinyServer(function(input, output, session) {
   ##### load cxn file for selected pathway #####
   checkCxnFile <- reactive({
     cxnFile <- suppressWarnings(paste0("data/keggcxn/",input$pathID,".cxn"))
+    if(input$netType == "CPD"){
+      cxnFile <- suppressWarnings(paste0("data/keggcxncpd/",input$pathID,".cpd"))
+    }
     return(file.exists(cxnFile))
   })
   
@@ -158,9 +182,16 @@ shinyServer(function(input, output, session) {
     # if(is.null(input$pathID)){return ()}
     # else {
       cxnFile <- suppressWarnings(paste0("data/keggcxn/",pathID,".cxn"))
+      if(input$netType == "CPD"){
+        cxnFile <- suppressWarnings(paste0("data/keggcxncpd/",pathID,".cpd"))
+      }
       if(file.exists(cxnFile)){
         inputDf <- as.data.frame(read.table(cxnFile, sep='\t',header=F,check.names=FALSE,comment.char=""))
-        colnames(inputDf) <- c("from","to","interaction")
+        if(input$netType == "KO"){
+          colnames(inputDf) <- c("from","to","interaction")
+        } else {
+          colnames(inputDf) <- c("from","to","reaction","id")
+        }
         
         return(inputDf)
       } else {
@@ -188,17 +219,51 @@ shinyServer(function(input, output, session) {
     }
   })
   
+  ##### get list of edges #####
+  edgeData <- reactive({
+    inputDf <- networkDf(input$pathID)
+    
+    if(input$netType == "CPD"){
+      ### filter edges by annotated proteins
+      annoDf <- annoDf()
+      if(!is.null(annoDf)){
+        inputDf$color <- "grey"
+        inputDf$shadow <- FALSE
+        inputDf$dashes <- TRUE
+        
+        ### filter anno data based on selected source species 
+        if(!is.null(input$sourceList)){
+          if(input$sourceList != "all"){
+            annoDf <- annoDf[annoDf$source == input$sourceList,]
+          }
+        }
+        
+        ### remove reactions that have no enzymes (no annotated proteins)
+        inputDf$color[inputDf$id %in% annoDf$id] <- "red"
+        inputDf$shadow[inputDf$id %in% annoDf$id] <- TRUE
+        inputDf$dashes[inputDf$id %in% annoDf$id] <- FALSE
+        
+        ### return
+        edgeDf <- unique(inputDf[,c("from","to","color","shadow","dashes")])
+        return(edgeDf)
+      } else {
+        edgeDf <- inputDf[,(1:2)]
+        return(edgeDf)
+      }
+    } else {
+      edgeDf <- inputDf[,(1:2)]
+      return(edgeDf)
+    }
+  })
+  
   ##### get list of nodes and mark annotated nodes from input file #####
   nodeDataPre <- function(pathID){
     inputDf <- networkDf(pathID)
     if(is.null(inputDf)){return()}
     
     ### join source and target KOs to get full list of nodes for reference network
-    sourceDf <- data.frame(inputDf$from,stringsAsFactors = FALSE)
-    colnames(sourceDf) <- "id"
-    targetDf <- data.frame(inputDf$to,stringsAsFactors = FALSE)
-    colnames(targetDf) <- "id"
-    
+    sourceDf <- data.frame("id" = inputDf$from,stringsAsFactors = FALSE)
+    targetDf <- data.frame("id" = inputDf$to,stringsAsFactors = FALSE)
     nodeDf <- unique(rbind(sourceDf,targetDf))
     
     annoDf <- annoDf()
@@ -210,17 +275,32 @@ shinyServer(function(input, output, session) {
         }
       }
       
-      ### map annotated nodes to reference net
-      joinedDf <- merge(nodeDf,annoDf, by="id", all.x=TRUE)
-      joinedDf$group <- joinedDf$source
-      
-      ### remove un-annotated nodes if requested
-      if(input$filterNodes == "yes"){
-        # joinedDf <- joinedDf[complete.cases(joinedDf),]
-        joinedDf <- joinedDf[!is.na(joinedDf$geneID),]
+      if(input$netType == "KO"){
+        ### map annotated nodes to reference net
+        joinedDf <- merge(nodeDf,annoDf, by="id", all.x=TRUE)
+        joinedDf$group <- joinedDf$source
+        
+        ### remove un-annotated nodes if requested
+        if(input$filterNodes == "yes"){
+          # joinedDf <- joinedDf[complete.cases(joinedDf),]
+          joinedDf <- joinedDf[!is.na(joinedDf$geneID),]
+        }
+        
+        return(joinedDf)
+      } else {
+        ### remove un-connected nodes if requested
+        if(input$filterNodes == "yes"){
+          inputDf$id <- as.character(inputDf$id)
+          inputDf <- inputDf[inputDf$id %in% annoDf$id,]
+          meltInputDf <- melt(inputDf[,c("from","to","id")], id="id")
+          colnames(meltInputDf) <- c("ko","variable","id")
+          
+          outDf <- unique(data.frame("id" = meltInputDf$id,stringsAsFactors = FALSE))
+          return(outDf)
+        } else {
+          return(nodeDf)
+        }
       }
-      
-      return(joinedDf)
     } else {
       return(nodeDf)
     }
@@ -231,109 +311,119 @@ shinyServer(function(input, output, session) {
     
     if(is.null(inputDf)){return()}
     
+    nodeDf <- nodeDataPre(input$pathID)
+    
     ### read annotated data
     annoDf <- annoDf()
     if(!is.null(annoDf)){
-      joinedDf <- nodeDataPre(input$pathID)
-      
-      if(nrow(joinedDf) == 0){
-        nodeEmpty <- data.frame("id"="1","label"="Selected source taxon does not have any annotated proteins","title"="EMPTY","color"="white")
-        return(nodeEmpty)
-      } else {
-        ### change group type for reference nodes
-        # if(length(unique(complete.cases(joinedDf))) > 1){
-        if(nrow(joinedDf[is.na(joinedDf$geneID),]) > 0){
-          joinedDf[is.na(joinedDf$geneID),]$group <- "reference"
-        }
+      if(input$netType == "KO"){
+        joinedDf <- nodeDf
         
-        ### process duplicated node IDs
-        dupID <- joinedDf[duplicated(joinedDf$id),]$id
-        if(length(dupID) > 0){
-          # join gene IDs
-          joinedDf$joinedGeneID <- joinedDf$geneID
-          for(i in 1:length(dupID)){
-            joinedDf[joinedDf$id == dupID[i],]$joinedGeneID <- toString(unique(sort(joinedDf[joinedDf$id == dupID[i],]$geneID)))
+        if(nrow(joinedDf) == 0){
+          nodeEmpty <- data.frame("id"="1","label"="Selected source taxon does not have any annotated proteins","title"="EMPTY","color"="white")
+          return(nodeEmpty)
+        } else {
+          ### change group type for reference nodes
+          # if(length(unique(complete.cases(joinedDf))) > 1){
+          if(nrow(joinedDf[is.na(joinedDf$geneID),]) > 0){
+            joinedDf[is.na(joinedDf$geneID),]$group <- "reference"
           }
           
-          # join groups (source species)
-          joinedDf$joinedGroup <- joinedDf$group
-          for(i in 1:length(dupID)){
-            joinedDf[joinedDf$id == dupID[i],]$joinedGroup <- toString(unique(sort(joinedDf[joinedDf$id == dupID[i],]$source)))
-          }
-          
-          # get max FAS and min Dist for joined nodes
-          aggrDist <- aggregate(joinedDf[,"patristicDist"],list(joinedDf$id),FUN="min")
-          colnames(aggrDist) <- c("id","patristicDist")
-          
-          aggrFAS <- aggregate(joinedDf[,"FAS"],list(joinedDf$id),FUN="max")
-          colnames(aggrFAS) <- c("id","FAS")
-          
-          aggrDf <- merge(aggrFAS, aggrDist, by="id")
-          # for(i in 1:nrow(aggrFAS)){
-          #   aggrDf$joinedColor[i] <- joinedDf[joinedDf$id %in% aggrDf$id[i] & joinedDf$FAS %in% aggrDf$FAS[i],]$color[1]
+          ### process duplicated node IDs
+          dupID <- joinedDf[duplicated(joinedDf$id),]$id
+          if(length(dupID) > 0){
+            # join gene IDs
+            joinedDf$joinedGeneID <- joinedDf$geneID
+            for(i in 1:length(dupID)){
+              joinedDf[joinedDf$id == dupID[i],]$joinedGeneID <- toString(unique(sort(joinedDf[joinedDf$id == dupID[i],]$geneID)))
+            }
+            
+            # join groups (source species)
+            joinedDf$joinedGroup <- joinedDf$group
+            for(i in 1:length(dupID)){
+              joinedDf[joinedDf$id == dupID[i],]$joinedGroup <- toString(unique(sort(joinedDf[joinedDf$id == dupID[i],]$source)))
+            }
+            
+            # get max FAS and min Dist for joined nodes
+            aggrDist <- aggregate(joinedDf[,"patristicDist"],list(joinedDf$id),FUN="min")
+            colnames(aggrDist) <- c("id","patristicDist")
+            
+            aggrFAS <- aggregate(joinedDf[,"FAS"],list(joinedDf$id),FUN="max")
+            colnames(aggrFAS) <- c("id","FAS")
+            
+            aggrDf <- merge(aggrFAS, aggrDist, by="id")
+            # for(i in 1:nrow(aggrFAS)){
+            #   aggrDf$joinedColor[i] <- joinedDf[joinedDf$id %in% aggrDf$id[i] & joinedDf$FAS %in% aggrDf$FAS[i],]$color[1]
+            # }
+            
+            # remove duplicated IDs from joinedDf and merge with aggrDf
+            joinedDf <- joinedDf[!duplicated(joinedDf$id),]
+            joinedDf <- merge(aggrDf, joinedDf, by="id", all.x = TRUE)
+            
+            # select needed columns of joinedDf
+            joinedDf <- joinedDf[,c("id","joinedGroup","FAS.x","joinedGeneID","patristicDist.x")]
+            colnames(joinedDf) <- c("id","group","FAS","geneID","patristicDist")
+          } 
+          # else {
+          #   # select needed columns of joinedDf
+          #   joinedDf <- joinedDf[,c("id","joinedGroup","FAS.x","joinedGeneID","patristicDist.x","color")]
+          #   colnames(joinedDf) <- c("id","group","FAS","geneID","patristicDist","color")
           # }
           
-          # remove duplicated IDs from joinedDf and merge with aggrDf
-          joinedDf <- joinedDf[!duplicated(joinedDf$id),]
-          joinedDf <- merge(aggrDf, joinedDf, by="id", all.x = TRUE)
+          ### create node color based on patristic distance
+          colorCodeDf = data.frame("colorLv" = c(0,1,2,3,4,5,6,7,8,9,10), 
+                                   "color" = c('#AE250A','#A8390B','#A24E0C','#9C630D','#97780E','#918D0F','#8BA110','#86B611','#80CB12','#7AE013','#75F514'))
+          joinedDf$colorLv <- 10 - as.integer(as.numeric(joinedDf$patristicDist)*10)
+          joinedDf <- merge(joinedDf,colorCodeDf, by = "colorLv", all.x = TRUE)
+          drop <- c("colorLv")
+          joinedDf <- joinedDf[ , !(names(joinedDf) %in% drop)]
           
-          # select needed columns of joinedDf
-          joinedDf <- joinedDf[,c("id","joinedGroup","FAS.x","joinedGeneID","patristicDist.x")]
-          colnames(joinedDf) <- c("id","group","FAS","geneID","patristicDist")
-        } 
-        # else {
-        #   # select needed columns of joinedDf
-        #   joinedDf <- joinedDf[,c("id","joinedGroup","FAS.x","joinedGeneID","patristicDist.x","color")]
-        #   colnames(joinedDf) <- c("id","group","FAS","geneID","patristicDist","color")
-        # }
-        
-        ### create node color based on patristic distance
-        colorCodeDf = data.frame("colorLv" = c(0,1,2,3,4,5,6,7,8,9,10), 
-                                 "color" = c('#AE250A','#A8390B','#A24E0C','#9C630D','#97780E','#918D0F','#8BA110','#86B611','#80CB12','#7AE013','#75F514'))
-        joinedDf$colorLv <- 10 - as.integer(as.numeric(joinedDf$patristicDist)*10)
-        joinedDf <- merge(joinedDf,colorCodeDf, by = "colorLv", all.x = TRUE)
-        drop <- c("colorLv")
-        joinedDf <- joinedDf[ , !(names(joinedDf) %in% drop)]
-        
-        joinedDf$color <- as.character(joinedDf$color)
-        if(nrow(joinedDf[is.na(joinedDf$color),]) > 0){
-          joinedDf[is.na(joinedDf$color),]$color <- "#878787"
+          joinedDf$color <- as.character(joinedDf$color)
+          if(nrow(joinedDf[is.na(joinedDf$color),]) > 0){
+            joinedDf[is.na(joinedDf$color),]$color <- "#878787"
+          }
+          
+          ### node title, label, size(~FAS)
+          joinedDf <- dplyr::rename(joinedDf, title = geneID)
+          if(nrow(joinedDf[is.na(joinedDf$title),]) > 0){
+            joinedDf[is.na(joinedDf$title),]$title <- as.character(joinedDf[is.na(joinedDf$title),]$id)
+          }
+          
+          joinedDf$label <- joinedDf$id
+          
+          joinedDf$value <- as.integer(100^(joinedDf$FAS)*10)
+          if(nrow(joinedDf[is.na(joinedDf$FAS),]) > 0){
+            joinedDf[is.na(joinedDf$FAS),]$value <- 1
+          }
+          
+          ### add node shapes
+          shapeList <- c("circle", "triangle", "square", "dot", "star", "ellipse", "database", "text", "diamond")
+          groupList <- sort(unique(joinedDf$group[joinedDf$group != "reference"]))
+          n = 1
+          for(i in 1:length(groupList)){
+            if(n > 9){n = 1}
+            joinedDf$shape[joinedDf$group == groupList[i]] <- as.character(shapeList[n])
+            n=n+1
+          }
+          joinedDf$shape[joinedDf$group == "reference"] <- "box"
+          
+          ### add shadow
+          joinedDf$shadow <- FALSE#TRUE
+          joinedDf$shadow[joinedDf$group == "reference"] <- FALSE
+          
+          ### return node data
+          subNodeDf <- joinedDf[,c("id","label","title","group","value","color","shape","shadow")]
+          return(subNodeDf)
         }
-        
-        ### node title, label, size(~FAS)
-        joinedDf <- dplyr::rename(joinedDf, title = geneID)
-        if(nrow(joinedDf[is.na(joinedDf$title),]) > 0){
-          joinedDf[is.na(joinedDf$title),]$title <- as.character(joinedDf[is.na(joinedDf$title),]$id)
-        }
-        
-        joinedDf$label <- joinedDf$id
-        
-        joinedDf$value <- as.integer(100^(joinedDf$FAS)*10)
-        if(nrow(joinedDf[is.na(joinedDf$FAS),]) > 0){
-          joinedDf[is.na(joinedDf$FAS),]$value <- 1
-        }
-        
-        ### add node shapes
-        shapeList <- c("circle", "triangle", "square", "dot", "star", "ellipse", "database", "text", "diamond")
-        groupList <- sort(unique(joinedDf$group[joinedDf$group != "reference"]))
-        n = 1
-        for(i in 1:length(groupList)){
-          if(n > 9){n = 1}
-          joinedDf$shape[joinedDf$group == groupList[i]] <- as.character(shapeList[n])
-          n=n+1
-        }
-        joinedDf$shape[joinedDf$group == "reference"] <- "box"
-        
-        ### add shadow
-        joinedDf$shadow <- FALSE#TRUE
-        joinedDf$shadow[joinedDf$group == "reference"] <- FALSE
-        
-        ### return node data
-        subNodeDf <- joinedDf[,c("id","label","title","group","value","color","shape","shadow")]
-        return(subNodeDf)
+      } else {
+        nodeDf$color <- "#7aa8e7"
+        nodeDf$title <- nodeDf$id
+        nodeDf$label <- nodeDf$id
+        nodeDf$shape <- "circle"
+        nodeDf$shadow <- FALSE
+        return(nodeDf)
       }
     } else {
-      nodeDf <- nodeDataPre(input$pathID)
       nodeDf$color <- "#878787"
       nodeDf$title <- nodeDf$id
       nodeDf$label <- nodeDf$id
@@ -341,13 +431,6 @@ shinyServer(function(input, output, session) {
       nodeDf$shadow <- FALSE
       return(nodeDf)
     }
-  })
-  
-  ##### get list of edges #####
-  edgeData <- reactive({
-    inputDf <- networkDf(input$pathID)
-    edgeDf <- inputDf[,(1:2)]
-    return(edgeDf)
   })
   
   ##### RENDER NETWORK #####
@@ -509,58 +592,108 @@ shinyServer(function(input, output, session) {
     inputDf <- networkDf(pathID)
     pathDf <- pathDf()
     
+    print(head(inputDf))
+    
     networkProperty <- data.frame()
-    ### read annotated data
-    annoDf <- annoDf()
-    if(!is.null(annoDf)){
-      joinedDf <- nodeDataPre(pathID)
-      
-      if(nrow(joinedDf) == 0){
-        nodeEmpty <- data.frame("id"="1","label"="Selected source taxon does not have any annotated proteins","title"="EMPTY","color"="white")
-        return(nodeEmpty)
-      } else {
-        ### change group type for reference nodes
-        # if(length(unique(complete.cases(joinedDf))) > 1){
-        if(nrow(joinedDf[is.na(joinedDf$geneID),]) > 0){
-          joinedDf[is.na(joinedDf$geneID),]$group <- "reference"
+    if(input$netType == "KO"){
+      ### read annotated data
+      annoDf <- annoDf()
+      if(!is.null(annoDf)){
+        joinedDf <- nodeDataPre(pathID)
+        
+        if(nrow(joinedDf) == 0){
+          nodeEmpty <- data.frame("id"="1","label"="Selected source taxon does not have any annotated proteins","title"="EMPTY","color"="white")
+          return(nodeEmpty)
+        } else {
+          ### change group type for reference nodes
+          # if(length(unique(complete.cases(joinedDf))) > 1){
+          if(nrow(joinedDf[is.na(joinedDf$geneID),]) > 0){
+            joinedDf[is.na(joinedDf$geneID),]$group <- "reference"
+          }
+          joinedDf <- joinedDf[!is.na(joinedDf$source),]
+          for(source in levels(as.factor(joinedDf$source))){
+            # node data
+            nodeDf <- data.frame("id" = as.character(unique(joinedDf[joinedDf$source == source,"id"])))
+            ### edge data
+            edgeDf <- inputDf[,(1:2)]
+            edgeDf <- edgeDf[edgeDf$from %in% nodeDf$id & edgeDf$to %in% nodeDf$id,]
+            
+            # create igraph object
+            graph <- graph_from_data_frame(edgeDf, directed = FALSE, vertices = nodeDf)
+            
+            # use GenInd function from NetIndices package to output network properties
+            graph.adj<-get.adjacency(graph,sparse=FALSE)
+            graph.properties<-GenInd(graph.adj)
+            
+            # get degree for all nodes
+            all.deg.graph <- as.data.frame(degree(graph,v=V(graph),mode="all"))
+            
+            # network properties
+            netProp <- data.frame(
+              "Nodes" = graph.properties$N,  # number of nodes
+              "Edges" = graph.properties$Ltot/2, # number of links
+              "Avg_Degree" = round(graph.properties$LD,2), # same as mean(all.deg.graph[,1]); link density (average # of links per node)
+              "Max_Degree" = max(all.deg.graph[,1]),
+              "Avg_Path_Len" = round(average.path.length(graph, unconnected=TRUE),2),
+              "Diameter" = diameter(graph)
+            )
+            
+            netProp$Pathway <- pathDf[pathDf$pathID == pathID,]$pathName
+            netProp$Source <- source
+            networkProperty <- rbind(networkProperty,netProp)
+          }
+          # return(networkProperty)
         }
-        joinedDf <- joinedDf[!is.na(joinedDf$source),]
-        for(source in levels(as.factor(joinedDf$source))){
-          # node data
-          nodeDf <- data.frame("id" = as.character(unique(joinedDf[joinedDf$source == source,"id"])))
-          ### edge data
-          edgeDf <- inputDf[,(1:2)]
-          edgeDf <- edgeDf[edgeDf$from %in% nodeDf$id & edgeDf$to %in% nodeDf$id,]
+      }
+      networkProperty <- networkProperty[,c("Pathway","Source","Nodes","Edges","Avg_Degree","Max_Degree","Avg_Path_Len","Diameter")]
+    } else {
+      annoDf <- annoDf()
+      if(!is.null(annoDf)){
+        for(source in levels(as.factor(annoDf$source))){
+          annoDfsub <- annoDf[annoDf$source == source,]
+          inputDfsub <- inputDf[inputDf$id %in% annoDfsub$id,]
           
-          # create igraph object
-          graph <- graph_from_data_frame(edgeDf, directed = FALSE, vertices = nodeDf)
-          
-          # use GenInd function from NetIndices package to output network properties
-          graph.adj<-get.adjacency(graph,sparse=FALSE)
-          graph.properties<-GenInd(graph.adj)
-          
-          # get degree for all nodes
-          all.deg.graph <- as.data.frame(degree(graph,v=V(graph),mode="all"))
-          
-          # network properties
-          netProp <- data.frame(
-            "Nodes" = graph.properties$N,  # number of nodes
-            "Edges" = graph.properties$Ltot/2, # number of links
-            "Avg_Degree" = round(graph.properties$LD,2), # same as mean(all.deg.graph[,1]); link density (average # of links per node)
-            "Max_Degree" = max(all.deg.graph[,1]),
-            "Avg_Path_Len" = round(average.path.length(graph, unconnected=TRUE),2),
-            "Diameter" = diameter(graph)
-          )
-          
-          netProp$Pathway <- pathDf[pathDf$pathID == pathID,]$pathName
-          netProp$Source <- source
-          networkProperty <- rbind(networkProperty,netProp)
+          if(nrow(inputDfsub) > 0){
+            edgeDf <- unique(inputDfsub[,c(1:2)])
+            
+            sourceDf <- data.frame("id" = inputDfsub$from,stringsAsFactors = FALSE)
+            targetDf <- data.frame("id" = inputDfsub$to,stringsAsFactors = FALSE)
+            nodeDf <- unique(rbind(sourceDf,targetDf))
+            
+            # create igraph object
+            graph <- graph_from_data_frame(edgeDf, directed = FALSE, vertices = nodeDf)
+            
+            # use GenInd function from NetIndices package to output network properties
+            graph.adj<-get.adjacency(graph,sparse=FALSE)
+            graph.properties<-GenInd(graph.adj)
+            
+            # get degree for all nodes
+            all.deg.graph <- as.data.frame(degree(graph,v=V(graph),mode="all"))
+            
+            # network properties
+            netProp <- data.frame(
+              "Nodes" = graph.properties$N,  # number of nodes
+              "Edges" = graph.properties$Ltot/2, # number of links
+              "Avg_Degree" = round(graph.properties$LD,2), # same as mean(all.deg.graph[,1]); link density (average # of links per node)
+              "Max_Degree" = max(all.deg.graph[,1]),
+              "Avg_Path_Len" = round(average.path.length(graph, unconnected=TRUE),2),
+              "Diameter" = diameter(graph)
+            )
+            
+            netProp$Pathway <- pathDf[pathDf$pathID == pathID,]$pathName
+            netProp$Source <- source
+            networkProperty <- rbind(networkProperty,netProp)
+          } else {
+            netProp <- data.frame("Nodes" = 0, "Edges" = 0, "Avg_Degree" = 0, "Max_Degree" = 0, "Avg_Path_Len" = 0, "Diameter" = 0)
+            netProp$Pathway <- pathDf[pathDf$pathID == pathID,]$pathName
+            netProp$Source <- source
+            networkProperty <- rbind(networkProperty,netProp)
+          }
         }
-        # return(networkProperty)
+        networkProperty <- networkProperty[,c("Pathway","Source","Nodes","Edges","Avg_Degree","Max_Degree","Avg_Path_Len","Diameter")]
       }
     }
-    networkProperty <- networkProperty[,c("Pathway","Source","Nodes","Edges","Avg_Degree","Max_Degree","Avg_Path_Len","Diameter")]
-
+    
     return(networkProperty)
   }
   
@@ -568,7 +701,9 @@ shinyServer(function(input, output, session) {
     pathIDs <- input$multiPathID
     multiNetProperty <- data.frame()
     for(pathID in pathIDs){
+      print(pathID)
       netProp <- netPropMapped(pathID)
+      print(netProp)
       multiNetProperty <- rbind(multiNetProperty,netProp)
     }
     
